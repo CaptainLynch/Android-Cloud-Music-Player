@@ -23,7 +23,7 @@
 
 ## 4. 当前进度与待办事项 (Task Tracker)
 - [x] 初始化项目结构与 `GEMINI.md` 文档。
-- [ ] 任务 1: 使用 Android Studio 搭建基础的 Compose 空白项目。
+- [x] 任务 1: 使用 Android Studio 搭建基础的 Compose 空白项目。
 - [ ] 任务 2: 编写 Retrofit 网络层，对接 GD Studio API。
 - [ ] 任务 3: 实现主界面的搜索 UI 与结果列表展示。
 - [ ] 任务 4: 集成 Media3/ExoPlayer，实现基础的音频播放与控制。
