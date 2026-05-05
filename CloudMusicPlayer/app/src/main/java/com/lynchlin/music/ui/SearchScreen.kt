@@ -68,7 +68,7 @@ fun SearchScreen(
                 items(searchResults) { song ->
                     SongItem(
                         title = song.name,
-                        artist = song.artist ?: "Unknown Artist"
+                        artist = song.artist?.joinToString(", ") ?: "Unknown Artist"
                     )
                 }
             }
