@@ -11,6 +11,16 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+data class Platform(val value: String, val label: String)
+
+val availablePlatforms = listOf(
+    Platform("netease", "网易云"),
+    Platform("tencent", "QQ音乐"),
+    Platform("kugou", "酷狗"),
+    Platform("kuwo", "酷我"),
+    Platform("migu", "咪咕"),
+)
+
 class SearchViewModel(application: Application) : AndroidViewModel(application) {
     private val _searchResults = MutableStateFlow<List<Song>>(emptyList())
     val searchResults: StateFlow<List<Song>> = _searchResults.asStateFlow()
@@ -21,11 +31,24 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
+    private val _selectedPlatform = MutableStateFlow(availablePlatforms[0])
+    val selectedPlatform: StateFlow<Platform> = _selectedPlatform.asStateFlow()
+
+    private val _albumArtCache = mutableMapOf<String, String>()
+    private val _lyricCache = mutableMapOf<String, String>()
+
     val isPlaying = MusicPlayerManager.isPlaying
     val currentSong = MusicPlayerManager.currentSong
 
     init {
         MusicPlayerManager.init(application)
+        MusicPlayerManager.onSongReady = { song ->
+            playSongFromQueue(song)
+        }
+    }
+
+    fun setPlatform(platform: Platform) {
+        _selectedPlatform.value = platform
     }
 
     fun searchMusic(keyword: String) {
@@ -35,7 +58,10 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
             _isLoading.value = true
             _error.value = null
             try {
-                val results = RetrofitClient.apiService.searchMusic(keyword = keyword)
+                val results = RetrofitClient.apiService.searchMusic(
+                    keyword = keyword,
+                    type = _selectedPlatform.value.value
+                )
                 _searchResults.value = results
             } catch (e: Exception) {
                 _error.value = e.message ?: "Failed to fetch data"
@@ -47,7 +73,41 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun playSong(song: Song) {
-        val urlId = song.urlId ?: return
+        val results = _searchResults.value
+        if (results.isNotEmpty()) {
+            val startIdx = results.indexOfFirst { it.id == song.id }
+            MusicPlayerManager.playQueue(results, if (startIdx >= 0) startIdx else 0)
+        } else {
+            MusicPlayerManager.playQueue(listOf(song), 0)
+        }
+    }
+
+    fun togglePlayPause() {
+        MusicPlayerManager.togglePlayPause()
+    }
+
+    fun playNext() {
+        MusicPlayerManager.playNext()
+    }
+
+    fun playPrevious() {
+        MusicPlayerManager.playPrevious()
+    }
+
+    fun playQueueAt(index: Int) {
+        val queue = MusicPlayerManager.playQueue.value
+        if (index in queue.indices) {
+            val song = queue[index]
+            MusicPlayerManager.setCurrentIndex(index)
+            playSongFromQueue(song)
+        }
+    }
+
+    private fun playSongFromQueue(song: Song) {
+        val urlId = song.urlId ?: run {
+            _error.value = "No playable URL for: ${song.name}"
+            return
+        }
         val source = song.source ?: "netease"
         viewModelScope.launch {
             try {
@@ -55,7 +115,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                     id = urlId,
                     source = source
                 )
-                MusicPlayerManager.play(response.url, song)
+                MusicPlayerManager.playExternalUrl(response.url, song)
             } catch (e: Exception) {
                 _error.value = e.message ?: "Failed to load song URL"
                 e.printStackTrace()
@@ -63,7 +123,26 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    fun togglePlayPause() {
-        MusicPlayerManager.togglePlayPause()
+    suspend fun loadAlbumArt(picId: String): String? {
+        _albumArtCache[picId]?.let { return it }
+        return try {
+            val response = RetrofitClient.apiService.getAlbumArt(id = picId)
+            _albumArtCache[picId] = response.url
+            response.url
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    suspend fun loadLyric(lyricId: String): String? {
+        _lyricCache[lyricId]?.let { return it }
+        return try {
+            val response = RetrofitClient.apiService.getLyric(id = lyricId)
+            val lyric = response.lyric
+            if (lyric != null) _lyricCache[lyricId] = lyric
+            lyric
+        } catch (_: Exception) {
+            null
+        }
     }
 }
