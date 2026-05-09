@@ -32,6 +32,7 @@ object MusicPlayerManager {
     val currentIndex: StateFlow<Int> = _currentIndex.asStateFlow()
 
     var onSongReady: ((Song) -> Unit) = {}
+    var onTrackEnded: (() -> Boolean)? = null
 
     fun init(context: Context) {
         if (exoPlayer != null) return
@@ -46,7 +47,8 @@ object MusicPlayerManager {
                         _duration.value = this@apply.duration
                     }
                     if (playbackState == Player.STATE_ENDED) {
-                        playNext()
+                        val handled = onTrackEnded?.invoke() == true
+                        if (!handled) playNext()
                     }
                 }
 

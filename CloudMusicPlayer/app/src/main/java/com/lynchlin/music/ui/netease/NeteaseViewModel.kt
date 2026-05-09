@@ -67,6 +67,15 @@ class NeteaseViewModel(application: Application) : AndroidViewModel(application)
     init {
         NeteaseSettings.init(application)
         if (isLoggedIn) loadUserPlaylists()
+
+        MusicPlayerManager.onTrackEnded = {
+            val idx = _playingTrackIndex.value
+            val list = currentTrackList
+            if (idx >= 0 && idx < list.size - 1) {
+                playTrack(list[idx + 1], list, idx + 1)
+                true
+            } else false
+        }
     }
 
     private fun api(): NeteaseApiService =
@@ -74,7 +83,11 @@ class NeteaseViewModel(application: Application) : AndroidViewModel(application)
 
     // ===== Navigation =====
 
-    fun goToHome() { _currentPage.value = NeteasePage.HOME }
+    fun goToHome() {
+        currentTrackList = emptyList()
+        _playingTrackIndex.value = -1
+        _currentPage.value = NeteasePage.HOME
+    }
     fun goToLoginSettings() { _currentPage.value = NeteasePage.LOGIN_SETTINGS }
 
     fun openPlaylistDetail(playlist: NeteasePlaylist) {
@@ -86,6 +99,8 @@ class NeteaseViewModel(application: Application) : AndroidViewModel(application)
     fun goBackFromPlaylistDetail() {
         _currentPlaylist.value = null
         _playlistTracks.value = emptyList()
+        currentTrackList = emptyList()
+        _playingTrackIndex.value = -1
         _currentPage.value = NeteasePage.HOME
     }
 
@@ -132,6 +147,8 @@ class NeteaseViewModel(application: Application) : AndroidViewModel(application)
         _playlists.value = emptyList()
         _dailyRecommendSongs.value = emptyList()
         _personalizedPlaylists.value = emptyList()
+        currentTrackList = emptyList()
+        _playingTrackIndex.value = -1
         _currentPage.value = NeteasePage.HOME
     }
 

@@ -158,6 +158,13 @@ data class NeteaseLyricData(
     @SerializedName("lyric") val lyric: String? = null
 )
 
+// --- Like List ---
+
+data class LikeListResponse(
+    @SerializedName("code") val code: Int,
+    @SerializedName("ids") val ids: List<Long>? = null
+)
+
 // --- Personalized / Private Radar ---
 
 data class PersonalizedResponse(

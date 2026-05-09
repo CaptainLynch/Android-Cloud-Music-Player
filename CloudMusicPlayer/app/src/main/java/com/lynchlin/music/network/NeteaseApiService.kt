@@ -50,7 +50,7 @@ interface NeteaseApiService {
     suspend fun likeList(
         @Query("uid") uid: Long,
         @Query("cookie") cookie: String
-    ): List<Long>
+    ): LikeListResponse
 
     // --- Daily Recommendations ---
 
