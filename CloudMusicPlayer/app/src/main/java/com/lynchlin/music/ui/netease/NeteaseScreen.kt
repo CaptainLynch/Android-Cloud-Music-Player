@@ -127,7 +127,7 @@ private fun NeteaseHomeScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.padding(12.dp)
                     ) {
-                        Icon(Icons.Default.Recommend, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.Star, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(4.dp))
                         Text("每日推荐")
                     }
@@ -140,7 +140,7 @@ private fun NeteaseHomeScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.padding(12.dp)
                     ) {
-                        Icon(Icons.Default.Radar, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.Explore, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(4.dp))
                         Text("私人雷达")
                     }
@@ -201,7 +201,7 @@ private fun NotLoggedInBanner(onLogin: () -> Unit) {
             )
             Spacer(Modifier.height(24.dp))
             Button(onClick = onLogin) {
-                Icon(Icons.Default.Login, contentDescription = null, modifier = Modifier.size(18.dp))
+                Icon(Icons.Default.AccountCircle, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(Modifier.width(8.dp))
                 Text("前往设置与登录")
             }

@@ -98,6 +98,9 @@ data class NeteaseTrack(
         name = name,
         artist = artists?.map { it.name },
         album = album?.name,
+        picId = null,
+        urlId = null,
+        lyricId = null,
         source = "netease_playlist"
     )
 
