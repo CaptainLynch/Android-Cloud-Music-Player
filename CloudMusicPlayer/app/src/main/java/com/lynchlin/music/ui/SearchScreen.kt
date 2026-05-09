@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -32,7 +33,8 @@ import com.lynchlin.music.data.model.Song
 fun SearchScreen(
     modifier: Modifier = Modifier,
     viewModel: SearchViewModel = viewModel(),
-    onOpenPlayer: () -> Unit = {}
+    onOpenPlayer: () -> Unit = {},
+    onOpenNetease: () -> Unit = {}
 ) {
     var searchQuery by remember { mutableStateOf("") }
     val searchResults by viewModel.searchResults.collectAsState()
@@ -59,7 +61,8 @@ fun SearchScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 availablePlatforms.forEach { platform ->
                     FilterChip(
@@ -67,6 +70,12 @@ fun SearchScreen(
                         onClick = { viewModel.setPlatform(platform) },
                         label = { Text(platform.label) }
                     )
+                }
+                Spacer(Modifier.width(4.dp))
+                FilledTonalButton(onClick = onOpenNetease) {
+                    Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("歌单")
                 }
             }
 
@@ -136,9 +145,8 @@ fun SearchScreen(
 @Composable
 fun SongItem(song: Song, onClick: () -> Unit, viewModel: SearchViewModel) {
     var albumArtUrl by remember { mutableStateOf<String?>(null) }
-    val sourceLabel = remember(song.source) {
-        availablePlatforms.find { it.value == song.source }?.label ?: song.source ?: ""
-    }
+    val sourcePlatform by viewModel.searchPlatform.collectAsState()
+    val sourceLabel = sourcePlatform.label
 
     LaunchedEffect(song.picId) {
         val picId = song.picId

@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import com.lynchlin.music.player.MusicPlayerManager
 import com.lynchlin.music.ui.PlayerScreen
 import com.lynchlin.music.ui.SearchScreen
+import com.lynchlin.music.ui.netease.NeteaseScreen
 import com.lynchlin.music.ui.theme.CloudMusicPlayerTheme
 
 class MainActivity : ComponentActivity() {
@@ -24,16 +25,21 @@ class MainActivity : ComponentActivity() {
         setContent {
             CloudMusicPlayerTheme {
                 var showPlayer by remember { mutableStateOf(false) }
+                var showNetease by remember { mutableStateOf(false) }
 
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    if (showPlayer) {
-                        PlayerScreen(
+                    when {
+                        showNetease -> NeteaseScreen(
+                            onBack = { showNetease = false },
+                            modifier = Modifier.padding(innerPadding)
+                        )
+                        showPlayer -> PlayerScreen(
                             onBack = { showPlayer = false },
                             modifier = Modifier.padding(innerPadding)
                         )
-                    } else {
-                        SearchScreen(
+                        else -> SearchScreen(
                             onOpenPlayer = { showPlayer = true },
+                            onOpenNetease = { showNetease = true },
                             modifier = Modifier.padding(innerPadding)
                         )
                     }

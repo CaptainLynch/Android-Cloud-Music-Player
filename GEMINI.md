@@ -30,6 +30,10 @@
 - [x] 任务 5: 增强播放器功能：播放队列、进度条、上下曲、专辑封面加载。
 - [x] 任务 6: 实现全屏播放器 UI（专辑封面、SeekBar、歌词预览、队列管理）。
 - [x] 任务 7: 搜索列表展示专辑封面缩略图。
-- [ ] 任务 8: 研究并攻克网易云个人歌单（需要鉴权）的 API 获取机制。
+- [x] 任务 8: 研究并攻克网易云个人歌单（需要鉴权）的 API 获取机制。
+  - 集成 Binaryify NeteaseCloudMusicApi 自建服务，支持手机号登录/Cookie 鉴权。
+  - 实现个人歌单列表浏览、歌单详情（播放全部）、每日推荐歌曲、私人内容（私人雷达/漫游）。
+  - 新增文件: `data/model/NeteaseModels.kt`, `network/NeteaseApiService.kt`, `network/NeteaseRetrofitClient.kt`, `data/settings/NeteaseSettings.kt`, `ui/netease/NeteaseViewModel.kt`, `ui/netease/NeteaseScreen.kt`。
+  - 修改文件: `MainActivity.kt`（新增 NeteaseScreen 导航）, `SearchScreen.kt`（新增"歌单"入口按钮）。
 - [x] 任务 9: 代码审计修复 —— ExoPlayer 泄漏、死代码清理、歌词正则增强、null 安全、viewModel 传参重构。
 - [x] 任务 10: 搜索栏增加音乐平台选择器（FilterChip 横向滚动），搜索结果展示来源标签。

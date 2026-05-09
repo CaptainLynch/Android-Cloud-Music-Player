@@ -15,7 +15,6 @@ data class Platform(val value: String, val label: String)
 
 val availablePlatforms = listOf(
     Platform("netease", "网易云"),
-    Platform("tencent", "QQ音乐"),
     Platform("kugou", "酷狗"),
     Platform("kuwo", "酷我"),
     Platform("migu", "咪咕"),
@@ -33,6 +32,9 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
 
     private val _selectedPlatform = MutableStateFlow(availablePlatforms[0])
     val selectedPlatform: StateFlow<Platform> = _selectedPlatform.asStateFlow()
+
+    private val _searchPlatform = MutableStateFlow(availablePlatforms[0])
+    val searchPlatform: StateFlow<Platform> = _searchPlatform.asStateFlow()
 
     private val _albumArtCache = mutableMapOf<String, String>()
     private val _lyricCache = mutableMapOf<String, String>()
@@ -54,14 +56,16 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
     fun searchMusic(keyword: String) {
         if (keyword.isBlank()) return
 
+        val platform = _selectedPlatform.value
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
             try {
                 val results = RetrofitClient.apiService.searchMusic(
                     keyword = keyword,
-                    type = _selectedPlatform.value.value
+                    type = platform.value
                 )
+                _searchPlatform.value = platform
                 _searchResults.value = results
             } catch (e: Exception) {
                 _error.value = e.message ?: "Failed to fetch data"
