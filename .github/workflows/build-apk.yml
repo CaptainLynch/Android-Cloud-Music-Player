@@ -21,19 +21,30 @@ jobs:
           distribution: 'temurin'
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install SDK Platform
         run: |
+          ANDROID_SDK_ROOT=/usr/local/lib/android/sdk
+          mkdir -p "${ANDROID_SDK_ROOT}/cmdline-tools"
+          cd "${ANDROID_SDK_ROOT}/cmdline-tools"
+
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+          unzip -q commandlinetools-linux-11076708_latest.zip
+          mv cmdline-tools latest
+          rm commandlinetools-linux-11076708_latest.zip
+
+          yes | "${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager" --licenses
+
           "${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager" \
-            "platforms;android-36"
+            "platforms;android-36" \
+            "platform-tools"
+
+          echo "ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT}" >> "${GITHUB_ENV}"
 
       - name: Grant Gradle Wrapper Permission
         run: chmod +x CloudMusicPlayer/gradlew
 
       - name: Build Release APK
         working-directory: CloudMusicPlayer
-        run: ./gradlew assembleRelease --no-daemon
+        run: ./gradlew assembleRelease --no-daemon --stacktrace
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
