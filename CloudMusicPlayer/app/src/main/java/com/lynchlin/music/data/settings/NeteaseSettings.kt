@@ -2,6 +2,7 @@ package com.lynchlin.music.data.settings
 
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.core.content.edit
 
 object NeteaseSettings {
     private const val PREFS_NAME = "netease_music_settings"
@@ -19,23 +20,23 @@ object NeteaseSettings {
 
     var apiUrl: String
         get() = prefs?.getString(KEY_API_URL, "http://127.0.0.1:3000") ?: "http://127.0.0.1:3000"
-        set(value) = prefs?.edit()?.putString(KEY_API_URL, value)?.apply()
+        set(value) { prefs?.edit { putString(KEY_API_URL, value) } }
 
     var cookie: String
         get() = prefs?.getString(KEY_COOKIE, "") ?: ""
-        set(value) = prefs?.edit()?.putString(KEY_COOKIE, value)?.apply()
+        set(value) { prefs?.edit { putString(KEY_COOKIE, value) } }
 
     var uid: Long
         get() = prefs?.getLong(KEY_UID, 0L) ?: 0L
-        set(value) = prefs?.edit()?.putLong(KEY_UID, value)?.apply()
+        set(value) { prefs?.edit { putLong(KEY_UID, value) } }
 
     var nickname: String
         get() = prefs?.getString(KEY_NICKNAME, "") ?: ""
-        set(value) = prefs?.edit()?.putString(KEY_NICKNAME, value)?.apply()
+        set(value) { prefs?.edit { putString(KEY_NICKNAME, value) } }
 
     var phone: String
         get() = prefs?.getString(KEY_PHONE, "") ?: ""
-        set(value) = prefs?.edit()?.putString(KEY_PHONE, value)?.apply()
+        set(value) { prefs?.edit { putString(KEY_PHONE, value) } }
 
     fun isLoggedIn(): Boolean = cookie.isNotBlank() && uid > 0
 
