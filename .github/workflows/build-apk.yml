@@ -5,6 +5,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -19,17 +22,11 @@ jobs:
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
-        with:
-          log-accepted-android-sdk-licenses: false
 
-      - name: Accept SDK Licenses
-        run: yes | "${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager" --licenses || true
-
-      - name: Install SDK Platform 36
+      - name: Install SDK Platform
         run: |
           "${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager" \
-            "platforms;android-36" \
-            "build-tools;36.0.0"
+            "platforms;android-36"
 
       - name: Grant Gradle Wrapper Permission
         run: chmod +x CloudMusicPlayer/gradlew
@@ -46,7 +43,6 @@ jobs:
           if-no-files-found: error
 
       - name: Create GitHub Release
-        if: github.ref == 'refs/heads/main'
         uses: softprops/action-gh-release@v2
         with:
           name: Latest Build
@@ -54,5 +50,3 @@ jobs:
           files: CloudMusicPlayer/app/build/outputs/apk/release/*.apk
           prerelease: true
           generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
