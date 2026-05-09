@@ -312,7 +312,7 @@ private fun DailyRecommendList(
     if (songs.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("点击上方 "每日推荐" 标签加载", color = MaterialTheme.colorScheme.outline)
+                Text("点击上方「每日推荐」标签加载", color = MaterialTheme.colorScheme.outline)
                 Spacer(Modifier.height(8.dp))
                 OutlinedButton(onClick = { viewModel.loadDailyRecommend() }) {
                     Text("加载每日推荐")
@@ -350,7 +350,7 @@ private fun PersonalizedList(
     if (playlists.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("点击上方 "私人雷达" 标签加载", color = MaterialTheme.colorScheme.outline)
+                Text("点击上方「私人雷达」标签加载", color = MaterialTheme.colorScheme.outline)
                 Spacer(Modifier.height(8.dp))
                 OutlinedButton(onClick = { viewModel.loadPersonalized() }) {
                     Text("加载私人内容")
