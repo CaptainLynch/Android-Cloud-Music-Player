@@ -31,7 +31,7 @@ object FavoritesRepository {
         val db = AppDatabase.getInstance(context)
         dao = db.favoriteDao()
         scope.launch {
-            dao.getAll().collect { entities ->
+            dao!!.getAll().collect { entities ->
                 _favoriteIds.value = entities.map { it.songId }.toSet()
                 _favoriteSongs.value = entities.map { it.toSong() }
             }
@@ -41,7 +41,7 @@ object FavoritesRepository {
     fun isFavorite(songId: Long): Boolean = _favoriteIds.value.contains(songId)
 
     suspend fun toggleFavorite(song: Song) {
-        val d = dao
+        val d = dao!!
         val existing = d.getBySongId(song.id)
         if (existing != null) {
             d.deleteBySongId(song.id)
