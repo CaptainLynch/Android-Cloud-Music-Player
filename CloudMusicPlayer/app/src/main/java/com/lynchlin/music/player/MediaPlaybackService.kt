@@ -113,10 +113,9 @@ class MediaPlaybackService : MediaSessionService() {
                         AudioManager.AUDIOFOCUS_LOSS -> player?.pause()
                         AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> player?.pause()
                         AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
-                            player?.volume = 0.3f
+                            player?.pause()
                         }
                         AudioManager.AUDIOFOCUS_GAIN -> {
-                            player?.volume = 1.0f
                             player?.play()
                         }
                     }
@@ -132,10 +131,9 @@ class MediaPlaybackService : MediaSessionService() {
                         AudioManager.AUDIOFOCUS_LOSS -> player?.pause()
                         AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> player?.pause()
                         AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
-                            player?.volume = 0.3f
+                            player?.pause()
                         }
                         AudioManager.AUDIOFOCUS_GAIN -> {
-                            player?.volume = 1.0f
                             player?.play()
                         }
                     }
