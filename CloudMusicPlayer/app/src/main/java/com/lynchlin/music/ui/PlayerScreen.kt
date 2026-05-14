@@ -39,6 +39,8 @@ fun PlayerScreen(
     val totalDuration by MusicPlayerManager.duration.collectAsState()
     val playQueue by MusicPlayerManager.playQueue.collectAsState()
 
+    val favoriteIds by viewModel.favoriteIds.collectAsState()
+
     var albumArtUrl by remember { mutableStateOf<String?>(null) }
     var lyrics by remember { mutableStateOf<String?>(null) }
     var showQueue by remember { mutableStateOf(false) }
@@ -93,6 +95,16 @@ fun PlayerScreen(
                     }
                 },
                 actions = {
+                    currentSong?.let { song ->
+                        val isFav = song.id in favoriteIds
+                        IconButton(onClick = { viewModel.toggleFavorite(song) }) {
+                            Icon(
+                                imageVector = if (isFav) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                contentDescription = if (isFav) "取消收藏" else "收藏",
+                                tint = if (isFav) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                     IconButton(onClick = { showQueue = !showQueue }) {
                         Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = "Queue")
                     }

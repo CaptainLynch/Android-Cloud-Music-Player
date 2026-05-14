@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.lynchlin.music.data.model.*
 import com.lynchlin.music.data.settings.NeteaseSettings
 import com.lynchlin.music.network.NeteaseApiService
+import com.lynchlin.music.network.NeteaseOriginApiService
 import com.lynchlin.music.network.NeteaseRetrofitClient
 import com.lynchlin.music.player.MusicPlayerManager
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -50,6 +51,10 @@ class NeteaseViewModel(application: Application) : AndroidViewModel(application)
     private val _loginError = MutableStateFlow<String?>(null)
     val loginError: StateFlow<String?> = _loginError.asStateFlow()
 
+    // --- Direct Mode ---
+    private val _directMode = MutableStateFlow(NeteaseSettings.directMode)
+    val directMode: StateFlow<Boolean> = _directMode.asStateFlow()
+
     val isLoggedIn: Boolean get() = NeteaseSettings.isLoggedIn()
     val savedPhone: String get() = NeteaseSettings.phone
     val savedNickname: String get() = NeteaseSettings.nickname
@@ -79,7 +84,12 @@ class NeteaseViewModel(application: Application) : AndroidViewModel(application)
     }
 
     private fun api(): NeteaseApiService =
-        NeteaseRetrofitClient.getService(NeteaseSettings.apiUrl)
+        NeteaseRetrofitClient.getProxyService(NeteaseSettings.apiUrl)
+
+    private fun directApi(): NeteaseOriginApiService =
+        NeteaseRetrofitClient.getDirectService()
+
+    private val useDirect: Boolean get() = NeteaseSettings.directMode
 
     // ===== Navigation =====
 
@@ -111,6 +121,16 @@ class NeteaseViewModel(application: Application) : AndroidViewModel(application)
         NeteaseRetrofitClient.invalidate()
     }
 
+    fun toggleDirectMode() {
+        val newMode = !NeteaseSettings.directMode
+        NeteaseSettings.directMode = newMode
+        _directMode.value = newMode
+        if (newMode) {
+            NeteaseRetrofitClient.invalidateDirect()
+        }
+        logout()
+    }
+
     // ===== Login =====
 
     fun login(phone: String, password: String) {
@@ -122,7 +142,16 @@ class NeteaseViewModel(application: Application) : AndroidViewModel(application)
             _isLoading.value = true
             _loginError.value = null
             try {
-                val resp = api().loginCellphone(phone = phone, password = password)
+                val resp = if (useDirect) {
+                    directApi().loginCellphone(mapOf(
+                        "phone" to phone,
+                        "password" to password,
+                        "countrycode" to "86",
+                        "rememberLogin" to "true"
+                    ))
+                } else {
+                    api().loginCellphone(phone = phone, password = password)
+                }
                 if (resp.code == 200 && resp.cookie != null) {
                     NeteaseSettings.cookie = resp.cookie
                     NeteaseSettings.uid = resp.profile?.userId ?: resp.account?.id ?: 0L
@@ -144,6 +173,9 @@ class NeteaseViewModel(application: Application) : AndroidViewModel(application)
 
     fun logout() {
         NeteaseSettings.logout()
+        if (useDirect) {
+            NeteaseRetrofitClient.invalidateDirect()
+        }
         _playlists.value = emptyList()
         _dailyRecommendSongs.value = emptyList()
         _personalizedPlaylists.value = emptyList()
@@ -164,10 +196,18 @@ class NeteaseViewModel(application: Application) : AndroidViewModel(application)
             _isLoading.value = true
             _error.value = null
             try {
-                val resp = api().userPlaylist(
-                    uid = NeteaseSettings.uid,
-                    cookie = NeteaseSettings.cookie
-                )
+                val resp = if (useDirect) {
+                    directApi().userPlaylist(mapOf(
+                        "uid" to NeteaseSettings.uid,
+                        "offset" to 0,
+                        "limit" to 1001
+                    ))
+                } else {
+                    api().userPlaylist(
+                        uid = NeteaseSettings.uid,
+                        cookie = NeteaseSettings.cookie
+                    )
+                }
                 if (resp.code == 200 && resp.playlist != null) {
                     _playlists.value = resp.playlist
                 } else {
@@ -186,10 +226,20 @@ class NeteaseViewModel(application: Application) : AndroidViewModel(application)
             _isLoading.value = true
             _error.value = null
             try {
-                val resp = api().playlistAllTracks(
-                    id = playlistId,
-                    cookie = NeteaseSettings.cookie
-                )
+                val resp = if (useDirect) {
+                    directApi().playlistDetail(mapOf(
+                        "id" to playlistId,
+                        "offset" to 0,
+                        "total" to "true",
+                        "limit" to 1000,
+                        "n" to 1000
+                    ))
+                } else {
+                    api().playlistAllTracks(
+                        id = playlistId,
+                        cookie = NeteaseSettings.cookie
+                    )
+                }
                 if (resp.code == 200) {
                     val tracks = resp.playlist?.tracks ?: emptyList()
                     _playlistTracks.value = tracks
@@ -212,9 +262,13 @@ class NeteaseViewModel(application: Application) : AndroidViewModel(application)
             _isLoading.value = true
             _error.value = null
             try {
-                val resp = api().dailyRecommendSongs(
-                    cookie = NeteaseSettings.cookie
-                )
+                val resp = if (useDirect) {
+                    directApi().dailyRecommendSongs(emptyMap<String, Any>())
+                } else {
+                    api().dailyRecommendSongs(
+                        cookie = NeteaseSettings.cookie
+                    )
+                }
                 if (resp.code == 200 && resp.data?.dailySongs != null) {
                     _dailyRecommendSongs.value = resp.data.dailySongs
                 } else {
@@ -236,9 +290,16 @@ class NeteaseViewModel(application: Application) : AndroidViewModel(application)
             _isLoading.value = true
             _error.value = null
             try {
-                val resp = api().personalizedPrivateContentList(
-                    cookie = NeteaseSettings.cookie
-                )
+                val resp = if (useDirect) {
+                    directApi().personalizedPrivateContent(mapOf(
+                        "limit" to 10,
+                        "offset" to 0
+                    ))
+                } else {
+                    api().personalizedPrivateContentList(
+                        cookie = NeteaseSettings.cookie
+                    )
+                }
                 if (resp.code == 200 && resp.result != null) {
                     _personalizedPlaylists.value = resp.result
                 } else {
@@ -262,10 +323,18 @@ class NeteaseViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                val urlResp = api().songUrl(
-                    id = track.id,
-                    cookie = NeteaseSettings.cookie
-                )
+                val urlResp = if (useDirect) {
+                    directApi().songUrl(mapOf(
+                        "ids" to "[${track.id}]",
+                        "br" to 320000,
+                        "csrf_token" to ""
+                    ))
+                } else {
+                    api().songUrl(
+                        id = track.id,
+                        cookie = NeteaseSettings.cookie
+                    )
+                }
                 val url = urlResp.data?.firstOrNull()?.url
                 if (url != null) {
                     val song = track.toSong()

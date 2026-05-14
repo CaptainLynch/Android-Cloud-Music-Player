@@ -1,17 +1,27 @@
 package com.lynchlin.music.player
 
 import android.content.Context
+import android.content.Intent
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import com.lynchlin.music.data.model.Song
+import com.lynchlin.music.data.repository.FavoritesRepository
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.launch
 
 object MusicPlayerManager {
 
     private var exoPlayer: ExoPlayer? = null
+    private var service: MediaPlaybackService? = null
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     private val _isPlaying = MutableStateFlow(false)
     val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
@@ -31,33 +41,65 @@ object MusicPlayerManager {
     private val _currentIndex = MutableStateFlow(-1)
     val currentIndex: StateFlow<Int> = _currentIndex.asStateFlow()
 
+    private val _isCurrentSongFavorite = MutableStateFlow(false)
+    val isCurrentSongFavorite: StateFlow<Boolean> = _isCurrentSongFavorite.asStateFlow()
+
     var onSongReady: ((Song) -> Unit) = {}
     var onTrackEnded: (() -> Boolean)? = null
 
+    internal fun bindPlayer(player: ExoPlayer, svc: MediaPlaybackService) {
+        if (exoPlayer != null) return
+        exoPlayer = player
+        service = svc
+
+        player.addListener(object : Player.Listener {
+            override fun onIsPlayingChanged(isPlaying: Boolean) {
+                _isPlaying.value = isPlaying
+            }
+
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                if (playbackState == Player.STATE_READY) {
+                    _duration.value = player.duration
+                }
+            }
+
+            override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_SEEK) return
+                _duration.value = player.duration
+                _currentPosition.value = 0L
+            }
+        })
+
+        setupPositionUpdater()
+    }
+
+    internal fun unbindPlayer() {
+        exoPlayer = null
+        service = null
+    }
+
     fun init(context: Context) {
         if (exoPlayer != null) return
-        exoPlayer = ExoPlayer.Builder(context).build().apply {
-            addListener(object : Player.Listener {
-                override fun onIsPlayingChanged(isPlaying: Boolean) {
-                    _isPlaying.value = isPlaying
-                }
+        FavoritesRepository.init(context)
+        val intent = Intent(context, MediaPlaybackService::class.java)
+        context.startForegroundService(intent)
+    }
 
-                override fun onPlaybackStateChanged(playbackState: Int) {
-                    if (playbackState == Player.STATE_READY) {
-                        _duration.value = this@apply.duration
-                    }
-                    if (playbackState == Player.STATE_ENDED) {
-                        val handled = onTrackEnded?.invoke() == true
-                        if (!handled) playNext()
-                    }
-                }
+    fun toggleFavoriteCurrent() {
+        val song = _currentSong.value ?: return
+        scope.launch {
+            FavoritesRepository.toggleFavorite(song)
+            _isCurrentSongFavorite.value = FavoritesRepository.isFavorite(song.id)
+        }
+    }
 
-                override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-                    if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_SEEK) return
-                    _duration.value = this@apply.duration
-                    _currentPosition.value = 0L
-                }
-            })
+    private fun updateFavoriteStatus(song: Song?) {
+        if (song == null) {
+            _isCurrentSongFavorite.value = false
+            return
+        }
+        scope.launch {
+            _isCurrentSongFavorite.value = FavoritesRepository.isFavorite(song.id)
         }
     }
 
@@ -96,6 +138,14 @@ object MusicPlayerManager {
         exoPlayer?.seekTo(positionMs)
     }
 
+    fun startPlayback() {
+        exoPlayer?.play()
+    }
+
+    fun pausePlayback() {
+        exoPlayer?.pause()
+    }
+
     fun togglePlayPause() {
         val player = exoPlayer ?: return
         if (player.isPlaying) {
@@ -106,8 +156,7 @@ object MusicPlayerManager {
     }
 
     fun release() {
-        exoPlayer?.release()
-        exoPlayer = null
+        service = null
     }
 
     fun getExoPlayerPosition(): Long {
@@ -118,10 +167,27 @@ object MusicPlayerManager {
         _currentPosition.value = positionMs
     }
 
+    private fun setupPositionUpdater() {
+        val player = exoPlayer ?: return
+        scope.launch {
+            flow {
+                while (true) {
+                    emit(player.currentPosition)
+                    delay(500)
+                }
+            }.collect { pos ->
+                if (player.isPlaying) {
+                    _currentPosition.value = pos
+                }
+            }
+        }
+    }
+
     private fun playSongFromQueue(song: Song) {
         if (exoPlayer == null) return
         _currentSong.value = song
         _currentPosition.value = 0L
+        updateFavoriteStatus(song)
         onSongReady(song)
     }
 
@@ -131,9 +197,11 @@ object MusicPlayerManager {
 
     fun playExternalUrl(url: String, song: Song) {
         val player = exoPlayer ?: return
+        _currentSong.value = song
         player.stop()
         player.setMediaItem(MediaItem.fromUri(url))
         player.prepare()
         player.play()
+        updateFavoriteStatus(song)
     }
 }

@@ -11,6 +11,8 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.QueueMusic
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -34,7 +36,8 @@ fun SearchScreen(
     modifier: Modifier = Modifier,
     viewModel: SearchViewModel = viewModel(),
     onOpenPlayer: () -> Unit = {},
-    onOpenNetease: () -> Unit = {}
+    onOpenNetease: () -> Unit = {},
+    onOpenFavorites: () -> Unit = {}
 ) {
     var searchQuery by remember { mutableStateOf("") }
     val searchResults by viewModel.searchResults.collectAsState()
@@ -43,6 +46,9 @@ fun SearchScreen(
     val selectedPlatform by viewModel.selectedPlatform.collectAsState()
     val currentSong by viewModel.currentSong.collectAsState()
     val isPlaying by viewModel.isPlaying.collectAsState()
+    val searchPlatform by viewModel.searchPlatform.collectAsState()
+    val favoriteIds by viewModel.favoriteIds.collectAsState()
+    val sourceLabel = searchPlatform.label
     val focusManager = LocalFocusManager.current
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -76,6 +82,12 @@ fun SearchScreen(
                     Icon(Icons.AutoMirrored.Filled.QueueMusic, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(4.dp))
                     Text("歌单")
+                }
+                Spacer(Modifier.width(4.dp))
+                FilledTonalButton(onClick = onOpenFavorites) {
+                    Icon(Icons.Default.Favorite, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("收藏")
                 }
             }
 
@@ -122,7 +134,10 @@ fun SearchScreen(
                         SongItem(
                             song = song,
                             onClick = { viewModel.playSong(song) },
-                            viewModel = viewModel
+                            sourceLabel = sourceLabel,
+                            isFavorite = song.id in favoriteIds,
+                            onToggleFavorite = { viewModel.toggleFavorite(song) },
+                            loadAlbumArt = { picId -> viewModel.loadAlbumArt(picId) }
                         )
                     }
                 }
@@ -143,16 +158,21 @@ fun SearchScreen(
 }
 
 @Composable
-fun SongItem(song: Song, onClick: () -> Unit, viewModel: SearchViewModel) {
+fun SongItem(
+    song: Song,
+    onClick: () -> Unit,
+    sourceLabel: String = "",
+    isFavorite: Boolean = false,
+    onToggleFavorite: (() -> Unit)? = null,
+    loadAlbumArt: (suspend (String) -> String?)? = null
+) {
     var albumArtUrl by remember { mutableStateOf<String?>(null) }
-    val sourcePlatform by viewModel.searchPlatform.collectAsState()
-    val sourceLabel = sourcePlatform.label
 
     LaunchedEffect(song.picId) {
         val picId = song.picId
         if (!picId.isNullOrBlank() && albumArtUrl == null) {
             try {
-                val url = viewModel.loadAlbumArt(picId)
+                val url = loadAlbumArt?.invoke(picId)
                 if (!url.isNullOrBlank()) albumArtUrl = url
             } catch (_: Exception) { }
         }
@@ -233,6 +253,19 @@ fun SongItem(song: Song, onClick: () -> Unit, viewModel: SearchViewModel) {
                         style = MaterialTheme.typography.labelSmall,
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                         color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                }
+            }
+
+            if (onToggleFavorite != null) {
+                IconButton(
+                    onClick = onToggleFavorite,
+                    modifier = Modifier.size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                        contentDescription = if (isFavorite) "取消收藏" else "收藏",
+                        tint = if (isFavorite) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }

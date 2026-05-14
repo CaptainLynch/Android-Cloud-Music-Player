@@ -29,6 +29,7 @@ import coil.compose.AsyncImage
 import com.lynchlin.music.data.model.NeteasePlaylist
 import com.lynchlin.music.data.model.NeteaseTrack
 import com.lynchlin.music.data.model.PersonalizedPlaylist
+import com.lynchlin.music.data.settings.NeteaseSettings
 import com.lynchlin.music.player.MusicPlayerManager
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -644,6 +645,8 @@ private fun LoginSettingsScreen(
     var apiUrlField by remember { mutableStateOf(viewModel.apiUrl) }
     var phoneField by remember { mutableStateOf(viewModel.savedPhone) }
     var passwordField by remember { mutableStateOf("") }
+    var directMode by remember { mutableStateOf(NeteaseSettings.directMode) }
+    var showModeChangeDialog by remember { mutableStateOf(false) }
     val loginError by viewModel.loginError.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
 
@@ -686,6 +689,37 @@ private fun LoginSettingsScreen(
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done)
                 )
+            }
+
+            // Direct / Proxy Mode
+            item {
+                HorizontalDivider()
+                Spacer(Modifier.height(8.dp))
+                Text("连接模式", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (directMode) "直连模式" else "代理模式",
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                        Text(
+                            text = if (directMode) "直连官方网易云 API" else "通过本地代理服务 (NeteaseCloudMusicApi) 访问",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = directMode,
+                        onCheckedChange = {
+                            showModeChangeDialog = true
+                        }
+                    )
+                }
             }
 
             // Login status
@@ -825,6 +859,35 @@ private fun LoginSettingsScreen(
                     color = MaterialTheme.colorScheme.outline
                 )
             }
+        }
+
+        if (showModeChangeDialog) {
+            AlertDialog(
+                onDismissRequest = { showModeChangeDialog = false },
+                title = { Text("切换连接模式") },
+                text = {
+                    Text("切换模式将清空登录状态，需要重新登录，是否继续？")
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showModeChangeDialog = false
+                        directMode = !directMode
+                        NeteaseSettings.directMode = directMode
+                        if (viewModel.isLoggedIn) {
+                            viewModel.logout()
+                        }
+                    }) {
+                        Text("确认切换")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = {
+                        showModeChangeDialog = false
+                    }) {
+                        Text("取消")
+                    }
+                }
+            )
         }
     }
 }

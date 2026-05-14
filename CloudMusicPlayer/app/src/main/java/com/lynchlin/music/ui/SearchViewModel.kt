@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.lynchlin.music.data.model.Song
+import com.lynchlin.music.data.repository.FavoritesRepository
 import com.lynchlin.music.network.RetrofitClient
 import com.lynchlin.music.player.MusicPlayerManager
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,6 +22,7 @@ val availablePlatforms = listOf(
 )
 
 class SearchViewModel(application: Application) : AndroidViewModel(application) {
+
     private val _searchResults = MutableStateFlow<List<Song>>(emptyList())
     val searchResults: StateFlow<List<Song>> = _searchResults.asStateFlow()
 
@@ -36,13 +38,18 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
     private val _searchPlatform = MutableStateFlow(availablePlatforms[0])
     val searchPlatform: StateFlow<Platform> = _searchPlatform.asStateFlow()
 
+    val favoriteSongs: StateFlow<List<Song>> = FavoritesRepository.favoriteSongs
+    val favoriteIds: StateFlow<Set<Long>> = FavoritesRepository.favoriteIds
+
     private val _albumArtCache = mutableMapOf<String, String>()
     private val _lyricCache = mutableMapOf<String, String>()
 
     val isPlaying = MusicPlayerManager.isPlaying
     val currentSong = MusicPlayerManager.currentSong
+    val isCurrentSongFavorite = MusicPlayerManager.isCurrentSongFavorite
 
     init {
+        FavoritesRepository.init(application)
         MusicPlayerManager.init(application)
         MusicPlayerManager.onSongReady = { song ->
             playSongFromQueue(song)
@@ -105,6 +112,16 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
             MusicPlayerManager.setCurrentIndex(index)
             playSongFromQueue(song)
         }
+    }
+
+    fun toggleFavorite(song: Song) {
+        viewModelScope.launch {
+            FavoritesRepository.toggleFavorite(song)
+        }
+    }
+
+    fun isFavorite(songId: Long): Boolean {
+        return FavoritesRepository.isFavorite(songId)
     }
 
     private fun playSongFromQueue(song: Song) {
