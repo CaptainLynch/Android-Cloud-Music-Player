@@ -73,7 +73,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                     type = platform.value
                 )
                 _searchPlatform.value = platform
-                _searchResults.value = results
+                _searchResults.value = results.filter { it.source == platform.value }
             } catch (e: Exception) {
                 _error.value = e.message ?: "Failed to fetch data"
                 e.printStackTrace()

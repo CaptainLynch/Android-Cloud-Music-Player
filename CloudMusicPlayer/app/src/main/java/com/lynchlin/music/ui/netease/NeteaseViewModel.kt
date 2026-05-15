@@ -196,18 +196,10 @@ class NeteaseViewModel(application: Application) : AndroidViewModel(application)
             _isLoading.value = true
             _error.value = null
             try {
-                val resp = if (useDirect) {
-                    directApi().userPlaylist(mapOf(
-                        "uid" to NeteaseSettings.uid,
-                        "offset" to 0,
-                        "limit" to 1001
-                    ))
-                } else {
-                    api().userPlaylist(
-                        uid = NeteaseSettings.uid,
-                        cookie = NeteaseSettings.cookie
-                    )
-                }
+                val resp = api().userPlaylist(
+                    uid = NeteaseSettings.uid,
+                    cookie = NeteaseSettings.cookie
+                )
                 if (resp.code == 200 && resp.playlist != null) {
                     _playlists.value = resp.playlist
                 } else {
@@ -226,20 +218,10 @@ class NeteaseViewModel(application: Application) : AndroidViewModel(application)
             _isLoading.value = true
             _error.value = null
             try {
-                val resp = if (useDirect) {
-                    directApi().playlistDetail(mapOf(
-                        "id" to playlistId,
-                        "offset" to 0,
-                        "total" to "true",
-                        "limit" to 1000,
-                        "n" to 1000
-                    ))
-                } else {
-                    api().playlistAllTracks(
-                        id = playlistId,
-                        cookie = NeteaseSettings.cookie
-                    )
-                }
+                val resp = api().playlistAllTracks(
+                    id = playlistId,
+                    cookie = NeteaseSettings.cookie
+                )
                 if (resp.code == 200) {
                     val tracks = resp.playlist?.tracks ?: emptyList()
                     _playlistTracks.value = tracks
