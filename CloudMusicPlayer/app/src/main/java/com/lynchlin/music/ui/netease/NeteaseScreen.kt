@@ -647,8 +647,11 @@ private fun LoginSettingsScreen(
     var passwordField by remember { mutableStateOf("") }
     var directMode by remember { mutableStateOf(NeteaseSettings.directMode) }
     var showModeChangeDialog by remember { mutableStateOf(false) }
+    var connectionStatus by remember { mutableStateOf<String?>(null) }
+    var isTestingConnection by remember { mutableStateOf(false) }
     val loginError by viewModel.loginError.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val viewModelDirectMode by viewModel.directMode.collectAsState()
 
     Scaffold(
         modifier = modifier,
@@ -673,22 +676,77 @@ private fun LoginSettingsScreen(
             // API Server Config
             item {
                 Text("API 服务器配置", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = apiUrlField,
-                    onValueChange = {
-                        apiUrlField = it
-                        viewModel.saveApiUrl(it)
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("NeteaseCloudMusicApi 地址") },
-                    placeholder = { Text("http://127.0.0.1:3000") },
-                    supportingText = {
-                        Text("部署 Binaryify/NeteaseCloudMusicApi 后的服务地址")
-                    },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done)
-                )
+                Spacer(Modifier.height(4.dp))
+                if (viewModelDirectMode) {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "当前为直连模式，无需配置代理服务器地址。如需使用歌单功能，请切换至代理模式。",
+                            modifier = Modifier.padding(12.dp),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                } else {
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = apiUrlField,
+                        onValueChange = {
+                            apiUrlField = it
+                            viewModel.saveApiUrl(it)
+                            connectionStatus = null
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("NeteaseCloudMusicApi 地址") },
+                        placeholder = { Text(NeteaseSettings.DEFAULT_API_URL) },
+                        supportingText = {
+                            Text("部署 NeteaseCloudMusicApiEnhanced 后的服务器地址")
+                        },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        trailingIcon = {
+                            if (isTestingConnection) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(20.dp),
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                IconButton(
+                                    onClick = {
+                                        isTestingConnection = true
+                                        connectionStatus = null
+                                        viewModel.testProxyConnection(apiUrlField) { ok, msg ->
+                                            isTestingConnection = false
+                                            connectionStatus = if (ok) "✅ $msg" else "❌ $msg"
+                                        }
+                                    }
+                                ) {
+                                    Icon(
+                                        Icons.Default.Refresh,
+                                        contentDescription = "测试连接",
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+                        }
+                    )
+
+                    connectionStatus?.let { status ->
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = status,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (status.startsWith("✅"))
+                                MaterialTheme.colorScheme.primary
+                            else
+                                MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
             }
 
             // Direct / Proxy Mode
@@ -708,7 +766,10 @@ private fun LoginSettingsScreen(
                             style = MaterialTheme.typography.bodyLarge
                         )
                         Text(
-                            text = if (directMode) "直连官方网易云 API" else "通过本地代理服务 (NeteaseCloudMusicApi) 访问",
+                            text = if (directMode)
+                                "直连官方网易云 API · 支持登录+每日推荐+播放 · 不含歌单"
+                            else
+                                "通过代理服务器访问 · 全功能支持",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -717,7 +778,8 @@ private fun LoginSettingsScreen(
                         checked = directMode,
                         onCheckedChange = {
                             showModeChangeDialog = true
-                        }
+                        },
+                        enabled = !isTestingConnection
                     )
                 }
             }

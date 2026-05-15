@@ -121,6 +121,33 @@ class NeteaseViewModel(application: Application) : AndroidViewModel(application)
         NeteaseRetrofitClient.invalidate()
     }
 
+    fun testProxyConnection(url: String, onResult: (Boolean, String) -> Unit) {
+        viewModelScope.launch {
+            try {
+                val normalizedUrl = if (url.endsWith("/")) url else "$url/"
+                val client = okhttp3.OkHttpClient.Builder()
+                    .connectTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
+                    .readTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
+                    .build()
+                val request = okhttp3.Request.Builder()
+                    .url("${normalizedUrl}login/status?cookie=")
+                    .head()
+                    .build()
+                val response = client.newCall(request).execute()
+                response.close()
+                onResult(true, "连接成功")
+            } catch (e: java.net.ConnectException) {
+                onResult(false, "无法连接: ${e.message}")
+            } catch (e: java.net.SocketTimeoutException) {
+                onResult(false, "连接超时")
+            } catch (e: java.net.UnknownHostException) {
+                onResult(false, "无法解析主机地址")
+            } catch (e: Exception) {
+                onResult(false, "连接失败: ${e.message}")
+            }
+        }
+    }
+
     fun toggleDirectMode() {
         val newMode = !NeteaseSettings.directMode
         NeteaseSettings.directMode = newMode
@@ -189,6 +216,7 @@ class NeteaseViewModel(application: Application) : AndroidViewModel(application)
     }
 
     // ===== Playlists =====
+    // AD-008: 歌单接口强制走代理 — 直连加密在 user/playlist, playlist/detail, playlist/track/all 上不稳定
 
     fun loadUserPlaylists() {
         if (!isLoggedIn) return
@@ -237,6 +265,7 @@ class NeteaseViewModel(application: Application) : AndroidViewModel(application)
     }
 
     // ===== Daily Recommendations =====
+    // 直连加密已验证可用，双模式分支
 
     fun loadDailyRecommend() {
         if (!isLoggedIn) return
@@ -296,6 +325,7 @@ class NeteaseViewModel(application: Application) : AndroidViewModel(application)
     }
 
     // ===== Playback =====
+    // songUrl 直连已验证可用，双模式分支
 
     fun playTrack(track: NeteaseTrack, trackList: List<NeteaseTrack> = emptyList(), index: Int = 0) {
         currentTrackList = trackList.ifEmpty { listOf(track) }
