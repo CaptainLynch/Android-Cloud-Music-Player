@@ -23,9 +23,7 @@ object NeteaseSettings {
         get() = prefs?.getString(KEY_API_URL, DEFAULT_API_URL) ?: DEFAULT_API_URL
         set(value) { prefs?.edit { putString(KEY_API_URL, value) } }
 
-    companion object {
-        const val DEFAULT_API_URL = "https://your-netease-api.example.com"
-    }
+    const val DEFAULT_API_URL = "https://your-netease-api.example.com"
 
     var cookie: String
         get() = prefs?.getString(KEY_COOKIE, "") ?: ""
