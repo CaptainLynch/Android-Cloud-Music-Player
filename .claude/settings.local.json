@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(claude plugin *)",
+      "Bash(adb devices *)",
+      "Bash(E:/AndroidSDK/platform-tools/adb devices *)",
+      "Bash(E:/AndroidSDK/platform-tools/adb logcat *)",
+      "Bash(./gradlew assembleDebug)",
+      "Bash(E:/AndroidSDK/platform-tools/adb install *)",
+      "Bash(\"E:/AndroidSDK/platform-tools/adb\" shell *)"
+    ]
+  }
+}

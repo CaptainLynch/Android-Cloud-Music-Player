@@ -6,13 +6,16 @@ import androidx.lifecycle.viewModelScope
 import com.lynchlin.music.data.model.*
 import com.lynchlin.music.data.settings.NeteaseSettings
 import com.lynchlin.music.network.NeteaseApiService
-import com.lynchlin.music.network.NeteaseOriginApiService
 import com.lynchlin.music.network.NeteaseRetrofitClient
 import com.lynchlin.music.player.MusicPlayerManager
+import com.google.gson.JsonSyntaxException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.net.ConnectException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 
 enum class NeteasePage {
     HOME, LOGIN_SETTINGS, PLAYLIST_DETAIL
@@ -51,9 +54,10 @@ class NeteaseViewModel(application: Application) : AndroidViewModel(application)
     private val _loginError = MutableStateFlow<String?>(null)
     val loginError: StateFlow<String?> = _loginError.asStateFlow()
 
-    // --- Direct Mode ---
-    private val _directMode = MutableStateFlow(NeteaseSettings.directMode)
-    val directMode: StateFlow<Boolean> = _directMode.asStateFlow()
+    // --- Intelligence Mode ---
+    private val _intelligenceSongs = MutableStateFlow<List<NeteaseTrack>>(emptyList())
+    val intelligenceSongs: StateFlow<List<NeteaseTrack>> = _intelligenceSongs.asStateFlow()
+
 
     val isLoggedIn: Boolean get() = NeteaseSettings.isLoggedIn()
     val savedPhone: String get() = NeteaseSettings.phone
@@ -86,11 +90,6 @@ class NeteaseViewModel(application: Application) : AndroidViewModel(application)
     private fun api(): NeteaseApiService =
         NeteaseRetrofitClient.getProxyService(NeteaseSettings.apiUrl)
 
-    private fun directApi(): NeteaseOriginApiService =
-        NeteaseRetrofitClient.getDirectService()
-
-    private val useDirect: Boolean get() = NeteaseSettings.directMode
-
     // ===== Navigation =====
 
     fun goToHome() {
@@ -121,43 +120,6 @@ class NeteaseViewModel(application: Application) : AndroidViewModel(application)
         NeteaseRetrofitClient.invalidate()
     }
 
-    fun testProxyConnection(url: String, onResult: (Boolean, String) -> Unit) {
-        viewModelScope.launch {
-            try {
-                val normalizedUrl = if (url.endsWith("/")) url else "$url/"
-                val client = okhttp3.OkHttpClient.Builder()
-                    .connectTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
-                    .readTimeout(5, java.util.concurrent.TimeUnit.SECONDS)
-                    .build()
-                val request = okhttp3.Request.Builder()
-                    .url("${normalizedUrl}login/status?cookie=")
-                    .head()
-                    .build()
-                val response = client.newCall(request).execute()
-                response.close()
-                onResult(true, "连接成功")
-            } catch (e: java.net.ConnectException) {
-                onResult(false, "无法连接: ${e.message}")
-            } catch (e: java.net.SocketTimeoutException) {
-                onResult(false, "连接超时")
-            } catch (e: java.net.UnknownHostException) {
-                onResult(false, "无法解析主机地址")
-            } catch (e: Exception) {
-                onResult(false, "连接失败: ${e.message}")
-            }
-        }
-    }
-
-    fun toggleDirectMode() {
-        val newMode = !NeteaseSettings.directMode
-        NeteaseSettings.directMode = newMode
-        _directMode.value = newMode
-        if (newMode) {
-            NeteaseRetrofitClient.invalidateDirect()
-        }
-        logout()
-    }
-
     // ===== Login =====
 
     fun login(phone: String, password: String) {
@@ -169,16 +131,7 @@ class NeteaseViewModel(application: Application) : AndroidViewModel(application)
             _isLoading.value = true
             _loginError.value = null
             try {
-                val resp = if (useDirect) {
-                    directApi().loginCellphone(mapOf(
-                        "phone" to phone,
-                        "password" to password,
-                        "countrycode" to "86",
-                        "rememberLogin" to "true"
-                    ))
-                } else {
-                    api().loginCellphone(phone = phone, password = password)
-                }
+                val resp = api().loginCellphone(phone = phone, password = password)
                 if (resp.code == 200 && resp.cookie != null) {
                     NeteaseSettings.cookie = resp.cookie
                     NeteaseSettings.uid = resp.profile?.userId ?: resp.account?.id ?: 0L
@@ -190,8 +143,16 @@ class NeteaseViewModel(application: Application) : AndroidViewModel(application)
                 } else {
                     _loginError.value = resp.message ?: "登录失败，请检查手机号和密码"
                 }
+            } catch (e: ConnectException) {
+                _loginError.value = "无法连接服务器，请确认 API 地址和端口正确\n当前: ${NeteaseSettings.apiUrl}"
+            } catch (e: SocketTimeoutException) {
+                _loginError.value = "连接超时，请检查网络或 API 服务是否运行"
+            } catch (e: UnknownHostException) {
+                _loginError.value = "无法解析服务器地址，请确认 API 地址正确\n当前: ${NeteaseSettings.apiUrl}"
+            } catch (e: JsonSyntaxException) {
+                _loginError.value = "服务器返回数据异常，请确认 API 服务为网易云代理\n(如使用本地代理，请确认 NeteaseCloudMusicApi 已启动)"
             } catch (e: Exception) {
-                _loginError.value = "连接失败: ${e.message}，请确认 API 服务地址是否正确"
+                _loginError.value = "连接失败: ${e.message}"
             } finally {
                 _isLoading.value = false
             }
@@ -200,9 +161,6 @@ class NeteaseViewModel(application: Application) : AndroidViewModel(application)
 
     fun logout() {
         NeteaseSettings.logout()
-        if (useDirect) {
-            NeteaseRetrofitClient.invalidateDirect()
-        }
         _playlists.value = emptyList()
         _dailyRecommendSongs.value = emptyList()
         _personalizedPlaylists.value = emptyList()
@@ -216,7 +174,6 @@ class NeteaseViewModel(application: Application) : AndroidViewModel(application)
     }
 
     // ===== Playlists =====
-    // AD-008: 歌单接口强制走代理 — 直连加密在 user/playlist, playlist/detail, playlist/track/all 上不稳定
 
     fun loadUserPlaylists() {
         if (!isLoggedIn) return
@@ -265,7 +222,6 @@ class NeteaseViewModel(application: Application) : AndroidViewModel(application)
     }
 
     // ===== Daily Recommendations =====
-    // 直连加密已验证可用，双模式分支
 
     fun loadDailyRecommend() {
         if (!isLoggedIn) return
@@ -273,13 +229,9 @@ class NeteaseViewModel(application: Application) : AndroidViewModel(application)
             _isLoading.value = true
             _error.value = null
             try {
-                val resp = if (useDirect) {
-                    directApi().dailyRecommendSongs(emptyMap<String, Any>())
-                } else {
-                    api().dailyRecommendSongs(
-                        cookie = NeteaseSettings.cookie
-                    )
-                }
+                val resp = api().dailyRecommendSongs(
+                    cookie = NeteaseSettings.cookie
+                )
                 if (resp.code == 200 && resp.data?.dailySongs != null) {
                     _dailyRecommendSongs.value = resp.data.dailySongs
                 } else {
@@ -301,16 +253,9 @@ class NeteaseViewModel(application: Application) : AndroidViewModel(application)
             _isLoading.value = true
             _error.value = null
             try {
-                val resp = if (useDirect) {
-                    directApi().personalizedPrivateContent(mapOf(
-                        "limit" to 10,
-                        "offset" to 0
-                    ))
-                } else {
-                    api().personalizedPrivateContentList(
-                        cookie = NeteaseSettings.cookie
-                    )
-                }
+                val resp = api().personalizedPrivateContentList(
+                    cookie = NeteaseSettings.cookie
+                )
                 if (resp.code == 200 && resp.result != null) {
                     _personalizedPlaylists.value = resp.result
                 } else {
@@ -325,7 +270,6 @@ class NeteaseViewModel(application: Application) : AndroidViewModel(application)
     }
 
     // ===== Playback =====
-    // songUrl 直连已验证可用，双模式分支
 
     fun playTrack(track: NeteaseTrack, trackList: List<NeteaseTrack> = emptyList(), index: Int = 0) {
         currentTrackList = trackList.ifEmpty { listOf(track) }
@@ -335,18 +279,10 @@ class NeteaseViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             _isLoading.value = true
             try {
-                val urlResp = if (useDirect) {
-                    directApi().songUrl(mapOf(
-                        "ids" to "[${track.id}]",
-                        "br" to 320000,
-                        "csrf_token" to ""
-                    ))
-                } else {
-                    api().songUrl(
-                        id = track.id,
-                        cookie = NeteaseSettings.cookie
-                    )
-                }
+                val urlResp = api().songUrl(
+                    id = track.id,
+                    cookie = NeteaseSettings.cookie
+                )
                 val url = urlResp.data?.firstOrNull()?.url
                 if (url != null) {
                     val song = track.toSong()
@@ -397,5 +333,42 @@ class NeteaseViewModel(application: Application) : AndroidViewModel(application)
 
     fun clearError() {
         _error.value = null
+    }
+
+    // ===== Intelligence Mode =====
+
+    fun loadIntelligence(songId: Long, playlistId: Long) {
+        if (!isLoggedIn) return
+        viewModelScope.launch {
+            _isLoading.value = true
+            _error.value = null
+            try {
+                val resp = api().intelligenceList(
+                    id = songId,
+                    pid = playlistId,
+                    cookie = NeteaseSettings.cookie
+                )
+                if (resp.code == 200 && resp.data?.songs != null) {
+                    _intelligenceSongs.value = resp.data.songs
+                } else {
+                    _error.value = "获取心动模式列表失败"
+                }
+            } catch (e: Exception) {
+                _error.value = "获取心动模式列表失败: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    fun playIntelligenceSong(index: Int) {
+        val songs = _intelligenceSongs.value
+        if (index in songs.indices) {
+            playTrack(songs[index], songs, index)
+        }
+    }
+
+    fun clearIntelligence() {
+        _intelligenceSongs.value = emptyList()
     }
 }

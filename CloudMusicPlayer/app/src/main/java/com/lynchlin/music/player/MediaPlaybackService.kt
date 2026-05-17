@@ -1,11 +1,14 @@
 package com.lynchlin.music.player
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Intent
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.os.Build
+import androidx.core.app.NotificationCompat
 import androidx.media3.common.AudioAttributes as M3AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -25,12 +28,20 @@ class MediaPlaybackService : MediaSessionService() {
 
     companion object {
         private var instance: MediaPlaybackService? = null
+        @JvmStatic
         fun getInstance(): MediaPlaybackService? = instance
+
+        const val CHANNEL_ID = "music_playback"
+        const val NOTIFICATION_ID = 1
     }
 
     override fun onCreate() {
         super.onCreate()
         instance = this
+
+        createNotificationChannel()
+        startForeground(NOTIFICATION_ID, buildInitialNotification())
+
         audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
 
         player = ExoPlayer.Builder(this)
@@ -143,6 +154,27 @@ class MediaPlaybackService : MediaSessionService() {
             )
         }
     }
+
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                CHANNEL_ID,
+                "音乐播放",
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "云音乐播放控制"
+            }
+            val nm = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+            nm.createNotificationChannel(channel)
+        }
+    }
+
+    private fun buildInitialNotification() = NotificationCompat.Builder(this, CHANNEL_ID)
+        .setContentTitle("云音乐")
+        .setContentText("准备播放")
+        .setSmallIcon(android.R.drawable.ic_media_play)
+        .setOngoing(true)
+        .build()
 
     private fun abandonAudioFocus() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

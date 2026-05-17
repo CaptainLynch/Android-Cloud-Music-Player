@@ -16,7 +16,6 @@ import kotlinx.coroutines.launch
 object FavoritesRepository {
 
     private var dao: FavoriteDao? = null
-        get() = field ?: error("FavoritesRepository not initialized. Call init(context) first.")
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
@@ -41,7 +40,7 @@ object FavoritesRepository {
     fun isFavorite(songId: Long): Boolean = _favoriteIds.value.contains(songId)
 
     suspend fun toggleFavorite(song: Song) {
-        val d = dao!!
+        val d = dao ?: return
         val existing = d.getBySongId(song.id)
         if (existing != null) {
             d.deleteBySongId(song.id)

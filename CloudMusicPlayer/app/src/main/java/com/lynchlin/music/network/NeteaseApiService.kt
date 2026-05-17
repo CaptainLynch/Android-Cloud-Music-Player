@@ -1,6 +1,7 @@
 package com.lynchlin.music.network
 
 import com.lynchlin.music.data.model.*
+import com.lynchlin.music.data.model.IntelligenceResponse
 import retrofit2.http.*
 
 interface NeteaseApiService {
@@ -80,4 +81,14 @@ interface NeteaseApiService {
         @Query("id") id: Long,
         @Query("cookie") cookie: String
     ): NeteaseLyricResponse
+
+    // --- Heartbeat / Intelligence Mode ---
+    @GET("playmode/intelligence/list")
+    suspend fun intelligenceList(
+        @Query("id") id: Long,
+        @Query("pid") pid: Long,
+        @Query("sid") sid: Long? = null,
+        @Query("count") count: Int? = null,
+        @Query("cookie") cookie: String
+    ): IntelligenceResponse
 }

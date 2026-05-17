@@ -29,38 +29,6 @@ class MediaPlaybackServiceStructureTest {
     }
 }
 
-class MusicServiceStructureTest {
-
-    @Test
-    fun `MusicService extends Service`() {
-        val superClass = MusicService::class.java.superclass
-        assertNotNull(superClass)
-        assertEquals("android.app.Service", superClass.name)
-    }
-
-    @Test
-    fun `has required action constants`() {
-        assertEquals("music_playback", MusicService.CHANNEL_ID)
-        assertEquals(1, MusicService.NOTIFICATION_ID)
-        assertEquals("com.lynchlin.music.ACTION_PLAY_PAUSE", MusicService.ACTION_PLAY_PAUSE)
-        assertEquals("com.lynchlin.music.ACTION_NEXT", MusicService.ACTION_NEXT)
-        assertEquals("com.lynchlin.music.ACTION_PREVIOUS", MusicService.ACTION_PREVIOUS)
-    }
-
-    @Test
-    fun `has start and stop companion methods`() {
-        val startMethod = MusicService::class.java.methods.find {
-            it.name == "start" && java.lang.reflect.Modifier.isStatic(it.modifiers)
-        }
-        assertNotNull("Should have static start()", startMethod)
-
-        val stopMethod = MusicService::class.java.methods.find {
-            it.name == "stop" && java.lang.reflect.Modifier.isStatic(it.modifiers)
-        }
-        assertNotNull("Should have static stop()", stopMethod)
-    }
-}
-
 class MusicPlayerManagerStructureTest {
 
     @Test

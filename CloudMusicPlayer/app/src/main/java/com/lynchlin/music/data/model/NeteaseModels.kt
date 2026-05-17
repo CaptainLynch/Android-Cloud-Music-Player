@@ -180,3 +180,13 @@ data class PersonalizedPlaylist(
     @SerializedName("trackCount") val trackCount: Int = 0,
     @SerializedName("creator") val creator: PlaylistCreator? = null
 )
+
+// --- Heartbeat / Intelligence Mode ---
+data class IntelligenceResponse(
+    @SerializedName("code") val code: Int,
+    @SerializedName("data") val data: IntelligenceData? = null
+)
+
+data class IntelligenceData(
+    @SerializedName("songs") val songs: List<NeteaseTrack>? = null
+)

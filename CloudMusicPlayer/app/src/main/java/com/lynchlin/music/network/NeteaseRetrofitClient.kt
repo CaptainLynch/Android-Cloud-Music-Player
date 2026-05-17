@@ -8,12 +8,8 @@ import java.util.concurrent.TimeUnit
 
 object NeteaseRetrofitClient {
 
-    private const val DIRECT_BASE_URL = "https://music.163.com/"
-
     private var currentBaseUrl: String = ""
     private var proxyService: NeteaseApiService? = null
-    private var directService: NeteaseOriginApiService? = null
-    private var directCookieJar: NeteaseCookieJar? = null
 
     private val baseOkHttpClient = OkHttpClient.Builder()
         .connectTimeout(10, TimeUnit.SECONDS)
@@ -38,43 +34,6 @@ object NeteaseRetrofitClient {
                 .create(NeteaseApiService::class.java)
         }
         return proxyService!!
-    }
-
-    @Synchronized
-    fun getDirectService(): NeteaseOriginApiService {
-        if (directService == null) {
-            val cookieJar = NeteaseCookieJar()
-            directCookieJar = cookieJar
-
-            val client = OkHttpClient.Builder()
-                .connectTimeout(10, TimeUnit.SECONDS)
-                .readTimeout(30, TimeUnit.SECONDS)
-                .addInterceptor(
-                    HttpLoggingInterceptor().apply {
-                        level = HttpLoggingInterceptor.Level.BODY
-                    }
-                )
-                .addInterceptor(NeteaseDirectInterceptor())
-                .cookieJar(cookieJar)
-                .build()
-
-            directService = Retrofit.Builder()
-                .baseUrl(DIRECT_BASE_URL)
-                .client(client)
-                .addConverterFactory(GsonConverterFactory.create())
-                .build()
-                .create(NeteaseOriginApiService::class.java)
-        }
-        return directService!!
-    }
-
-    @Synchronized
-    fun getDirectCookieJar(): NeteaseCookieJar? = directCookieJar
-
-    @Synchronized
-    fun invalidateDirect() {
-        directService = null
-        directCookieJar = null
     }
 
     @Synchronized

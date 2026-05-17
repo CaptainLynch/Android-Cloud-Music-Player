@@ -48,22 +48,67 @@ class FavoriteEntityTest {
     @Test
     fun `addedAt defaults to current time`() {
         val before = System.currentTimeMillis()
-        val entity = FavoriteEntity(songId = 1L, name = "Test")
+        val entity = FavoriteEntity(
+            songId = 1L,
+            name = "Test",
+            artistJson = null,
+            album = null,
+            picId = null,
+            urlId = null,
+            lyricId = null,
+            source = null
+        )
         val after = System.currentTimeMillis()
         assertTrue(entity.addedAt in before..after)
     }
 
     @Test
     fun `entities with different songId are not equal`() {
-        val e1 = FavoriteEntity(songId = 1L, name = "A")
-        val e2 = FavoriteEntity(songId = 2L, name = "A")
+        val e1 = FavoriteEntity(
+            songId = 1L,
+            name = "A",
+            artistJson = null,
+            album = null,
+            picId = null,
+            urlId = null,
+            lyricId = null,
+            source = null
+        )
+        val e2 = FavoriteEntity(
+            songId = 2L,
+            name = "A",
+            artistJson = null,
+            album = null,
+            picId = null,
+            urlId = null,
+            lyricId = null,
+            source = null
+        )
         assertNotEquals(e1, e2)
     }
 
     @Test
     fun `entities with same songId and fields are equal`() {
-        val e1 = FavoriteEntity(songId = 1L, name = "A", artistJson = "[]", album = "B")
-        val e2 = FavoriteEntity(songId = 1L, name = "A", artistJson = "[]", album = "B")
+        val e1 = FavoriteEntity(
+            songId = 1L,
+            name = "A",
+            artistJson = "[]",
+            album = "B",
+            picId = null,
+            urlId = null,
+            lyricId = null,
+            source = null
+        )
+        val e2 = FavoriteEntity(
+            songId = 1L,
+            name = "A",
+            artistJson = "[]",
+            album = "B",
+            picId = null,
+            urlId = null,
+            lyricId = null,
+            source = null
+        )
         assertEquals(e1, e2)
         assertEquals(e1.hashCode(), e2.hashCode())
     }
@@ -71,7 +116,16 @@ class FavoriteEntityTest {
     @Test
     fun `artistJson stores JSON array of strings`() {
         val json = "[\"Singer A\",\"Singer B\"]"
-        val entity = FavoriteEntity(songId = 1L, name = "Song", artistJson = json)
+        val entity = FavoriteEntity(
+            songId = 1L,
+            name = "Song",
+            artistJson = json,
+            album = null,
+            picId = null,
+            urlId = null,
+            lyricId = null,
+            source = null
+        )
         assertEquals(json, entity.artistJson)
     }
 }

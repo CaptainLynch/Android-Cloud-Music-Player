@@ -1,0 +1,265 @@
+Index: GEMINI.md
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+># 音乐播放器项目 AI 开发上下文 (AI Context)\r\n\r\n## 1. 项目概述\r\n这是一个 Android 原生音乐播放器应用。\r\n- **技术栈**: Kotlin, Jetpack Compose (UI), Androidx Media3 / ExoPlayer (播放内核), Retrofit + OkHttp (网络请求), Coroutines & Flow (异步处理)。\r\n- **架构模式**: MVVM (Model-View-ViewModel) + Clean Architecture。\r\n\r\n## 2. 核心功能与 API 规范\r\n### 2.1 基础音乐功能 (基于 GD API)\r\n- **API 基础地址**: `https://music-api.gdstudio.xyz/api.php`\r\n- **要求实现**: 搜索音乐、获取歌曲播放链接、获取专辑封面、获取滚动歌词。\r\n- *AI 注意事项*: 所有的网络请求必须在 ViewModel 的协程中处理，使用 Retrofit 封装接口。\r\n\r\n### 2.2 网易云音乐高级功能\r\n- **需求**: 根据网易云用户 ID 读取歌单（包含“我喜欢的音乐”）、读取每日推荐、私人雷达、私人漫游。\r\n- **技术难点**: 涉及用户 Token/Cookie 验证。\r\n- *解决方案预设*: 需要集成并使用开源的网易云 API（如 Binaryify 的 NeteaseCloudMusicApi 的自建服务，或寻找可用的公用接口来传递 cookie/token）。\r\n\r\n## 3. 开发规范 (AI Agent Rules)\r\n1. **优先使用现代 Android 技术**: 坚决避免使用 Java、XML 布局或过时的 API，全部使用 Kotlin 和 Compose。\r\n2. **代码接力原则**: 每次修改代码后，请更新下方的【当前进度与待办事项】，以便下一个 AI 知道接下来的工作。\r\n3. **模块化**: 网络请求层、UI 播放层、数据层必须解耦。\r\n\r\n## 4. 当前进度与待办事项 (Task Tracker)\r\n- [x] 初始化项目结构与 `GEMINI.md` 文档。\r\n- [x] 任务 1: 使用 Android Studio 搭建基础的 Compose 空白项目。\r\n- [x] 任务 2: 编写 Retrofit 网络层，对接 GD Studio API。\r\n- [x] 任务 3: 实现主界面的搜索 UI 与结果列表展示。\r\n- [x] 任务 4: 集成 Media3/ExoPlayer，实现基础的音频播放与控制。\r\n- [x] 任务 5: 增强播放器功能：播放队列、进度条、上下曲、专辑封面加载。\r\n- [x] 任务 6: 实现全屏播放器 UI（专辑封面、SeekBar、歌词预览、队列管理）。\r\n- [x] 任务 7: 搜索列表展示专辑封面缩略图。\r\n- [ ] 任务 8: 研究并攻克网易云个人歌单（需要鉴权）的 API 获取机制。\r\n- [x] 任务 9: 代码审计修复 —— ExoPlayer 泄漏、死代码清理、歌词正则增强、null 安全、viewModel 传参重构。\r\n- [x] 任务 10: 搜索栏增加音乐平台选择器（FilterChip 横向滚动），搜索结果展示来源标签。
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/GEMINI.md b/GEMINI.md
+--- a/GEMINI.md	(revision d4ea6a2bcb5b07740c94a9fc3ba430848dc786cf)
++++ b/GEMINI.md	(date 1778337339193)
+@@ -30,6 +30,6 @@
+ - [x] 任务 5: 增强播放器功能：播放队列、进度条、上下曲、专辑封面加载。
+ - [x] 任务 6: 实现全屏播放器 UI（专辑封面、SeekBar、歌词预览、队列管理）。
+ - [x] 任务 7: 搜索列表展示专辑封面缩略图。
+-- [ ] 任务 8: 研究并攻克网易云个人歌单（需要鉴权）的 API 获取机制。
++- [x] 任务 8: 研究并攻克网易云个人歌单（需要鉴权）的 API 获取机制。接入 Binaryify NeteaseCloudMusicApi，实现手机/邮箱登录、Cookie 持久化、歌单浏览、每日推荐、歌曲播放。
+ - [x] 任务 9: 代码审计修复 —— ExoPlayer 泄漏、死代码清理、歌词正则增强、null 安全、viewModel 传参重构。
+ - [x] 任务 10: 搜索栏增加音乐平台选择器（FilterChip 横向滚动），搜索结果展示来源标签。
+\ No newline at end of file
+Index: CloudMusicPlayer/app/src/main/java/com/lynchlin/music/MainActivity.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>package com.lynchlin.music\r\n\r\nimport android.os.Bundle\r\nimport androidx.activity.ComponentActivity\r\nimport androidx.activity.compose.setContent\r\nimport androidx.activity.enableEdgeToEdge\r\nimport androidx.compose.foundation.layout.fillMaxSize\r\nimport androidx.compose.foundation.layout.padding\r\nimport androidx.compose.material3.Scaffold\r\nimport androidx.compose.runtime.getValue\r\nimport androidx.compose.runtime.mutableStateOf\r\nimport androidx.compose.runtime.remember\r\nimport androidx.compose.runtime.setValue\r\nimport androidx.compose.ui.Modifier\r\nimport com.lynchlin.music.player.MusicPlayerManager\r\nimport com.lynchlin.music.ui.PlayerScreen\r\nimport com.lynchlin.music.ui.SearchScreen\r\nimport com.lynchlin.music.ui.theme.CloudMusicPlayerTheme\r\n\r\nclass MainActivity : ComponentActivity() {\r\n    override fun onCreate(savedInstanceState: Bundle?) {\r\n        super.onCreate(savedInstanceState)\r\n        enableEdgeToEdge()\r\n        setContent {\r\n            CloudMusicPlayerTheme {\r\n                var showPlayer by remember { mutableStateOf(false) }\r\n\r\n                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->\r\n                    if (showPlayer) {\r\n                        PlayerScreen(\r\n                            onBack = { showPlayer = false },\r\n                            modifier = Modifier.padding(innerPadding)\r\n                        )\r\n                    } else {\r\n                        SearchScreen(\r\n                            onOpenPlayer = { showPlayer = true },\r\n                            modifier = Modifier.padding(innerPadding)\r\n                        )\r\n                    }\r\n                }\r\n            }\r\n        }\r\n    }\r\n\r\n    override fun onDestroy() {\r\n        super.onDestroy()\r\n        if (!isChangingConfigurations) {\r\n            MusicPlayerManager.release()\r\n        }\r\n    }\r\n}\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/CloudMusicPlayer/app/src/main/java/com/lynchlin/music/MainActivity.kt b/CloudMusicPlayer/app/src/main/java/com/lynchlin/music/MainActivity.kt
+--- a/CloudMusicPlayer/app/src/main/java/com/lynchlin/music/MainActivity.kt	(revision d4ea6a2bcb5b07740c94a9fc3ba430848dc786cf)
++++ b/CloudMusicPlayer/app/src/main/java/com/lynchlin/music/MainActivity.kt	(date 1778337178318)
+@@ -12,28 +12,54 @@
+ import androidx.compose.runtime.remember
+ import androidx.compose.runtime.setValue
+ import androidx.compose.ui.Modifier
++import com.lynchlin.music.network.NeteaseRetrofitClient
+ import com.lynchlin.music.player.MusicPlayerManager
+ import com.lynchlin.music.ui.PlayerScreen
+ import com.lynchlin.music.ui.SearchScreen
++import com.lynchlin.music.ui.auth.LoginScreen
++import com.lynchlin.music.ui.playlist.PlaylistScreen
+ import com.lynchlin.music.ui.theme.CloudMusicPlayerTheme
+ 
++sealed class Screen {
++    data object Search : Screen()
++    data object Player : Screen()
++    data object Login : Screen()
++    data class Playlists(val userId: Long) : Screen()
++}
++
+ class MainActivity : ComponentActivity() {
+     override fun onCreate(savedInstanceState: Bundle?) {
+         super.onCreate(savedInstanceState)
+         enableEdgeToEdge()
++
++        NeteaseRetrofitClient.init(applicationContext)
++
+         setContent {
+             CloudMusicPlayerTheme {
+-                var showPlayer by remember { mutableStateOf(false) }
++                var currentScreen by remember { mutableStateOf<Screen>(Screen.Search) }
+ 
+                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+-                    if (showPlayer) {
+-                        PlayerScreen(
+-                            onBack = { showPlayer = false },
++                    when (val screen = currentScreen) {
++                        is Screen.Search -> SearchScreen(
++                            onOpenPlayer = { currentScreen = Screen.Player },
++                            onOpenNetease = { currentScreen = Screen.Login },
++                            modifier = Modifier.padding(innerPadding)
++                        )
++                        is Screen.Player -> PlayerScreen(
++                            onBack = { currentScreen = Screen.Search },
+                             modifier = Modifier.padding(innerPadding)
+                         )
+-                    } else {
+-                        SearchScreen(
+-                            onOpenPlayer = { showPlayer = true },
++                        is Screen.Login -> LoginScreen(
++                            onBack = { currentScreen = Screen.Search },
++                            onLoginSuccess = { userId ->
++                                currentScreen = Screen.Playlists(userId)
++                            },
++                            modifier = Modifier.padding(innerPadding)
++                        )
++                        is Screen.Playlists -> PlaylistScreen(
++                            userId = screen.userId,
++                            onBack = { currentScreen = Screen.Search },
++                            onOpenPlayer = { currentScreen = Screen.Player },
+                             modifier = Modifier.padding(innerPadding)
+                         )
+                     }
+Index: CloudMusicPlayer/app/src/main/java/com/lynchlin/music/ui/SearchScreen.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>package com.lynchlin.music.ui\r\n\r\nimport androidx.compose.foundation.clickable\r\nimport androidx.compose.foundation.horizontalScroll\r\nimport androidx.compose.foundation.layout.*\r\nimport androidx.compose.foundation.rememberScrollState\r\nimport androidx.compose.foundation.lazy.LazyColumn\r\nimport androidx.compose.foundation.lazy.items\r\nimport androidx.compose.foundation.shape.RoundedCornerShape\r\nimport androidx.compose.foundation.text.KeyboardActions\r\nimport androidx.compose.foundation.text.KeyboardOptions\r\nimport androidx.compose.material.icons.Icons\r\nimport androidx.compose.material.icons.filled.MusicNote\r\nimport androidx.compose.material.icons.filled.Pause\r\nimport androidx.compose.material.icons.filled.PlayArrow\r\nimport androidx.compose.material.icons.filled.Search\r\nimport androidx.compose.material3.*\r\nimport androidx.compose.runtime.*\r\nimport androidx.compose.ui.Alignment\r\nimport androidx.compose.ui.Modifier\r\nimport androidx.compose.ui.draw.clip\r\nimport androidx.compose.ui.layout.ContentScale\r\nimport androidx.compose.ui.platform.LocalFocusManager\r\nimport androidx.compose.ui.text.input.ImeAction\r\nimport androidx.compose.ui.text.style.TextOverflow\r\nimport androidx.compose.ui.unit.dp\r\nimport androidx.lifecycle.viewmodel.compose.viewModel\r\nimport coil.compose.AsyncImage\r\nimport com.lynchlin.music.data.model.Song\r\n\r\n@Composable\r\nfun SearchScreen(\r\n    modifier: Modifier = Modifier,\r\n    viewModel: SearchViewModel = viewModel(),\r\n    onOpenPlayer: () -> Unit = {}\r\n) {\r\n    var searchQuery by remember { mutableStateOf(\"\") }\r\n    val searchResults by viewModel.searchResults.collectAsState()\r\n    val isLoading by viewModel.isLoading.collectAsState()\r\n    val error by viewModel.error.collectAsState()\r\n    val selectedPlatform by viewModel.selectedPlatform.collectAsState()\r\n    val currentSong by viewModel.currentSong.collectAsState()\r\n    val isPlaying by viewModel.isPlaying.collectAsState()\r\n    val focusManager = LocalFocusManager.current\r\n\r\n    Box(modifier = modifier.fillMaxSize()) {\r\n        Column(\r\n            modifier = Modifier\r\n                .fillMaxSize()\r\n                .padding(\r\n                    start = 16.dp,\r\n                    end = 16.dp,\r\n                    top = 16.dp,\r\n                    bottom = if (currentSong != null) 72.dp else 16.dp\r\n                )\r\n        ) {\r\n            // Platform selector\r\n            Row(\r\n                modifier = Modifier\r\n                    .fillMaxWidth()\r\n                    .horizontalScroll(rememberScrollState()),\r\n                horizontalArrangement = Arrangement.spacedBy(8.dp)\r\n            ) {\r\n                availablePlatforms.forEach { platform ->\r\n                    FilterChip(\r\n                        selected = platform == selectedPlatform,\r\n                        onClick = { viewModel.setPlatform(platform) },\r\n                        label = { Text(platform.label) }\r\n                    )\r\n                }\r\n            }\r\n\r\n            Spacer(modifier = Modifier.height(8.dp))\r\n\r\n            OutlinedTextField(\r\n                value = searchQuery,\r\n                onValueChange = { searchQuery = it },\r\n                modifier = Modifier.fillMaxWidth(),\r\n                placeholder = { Text(\"Search music...\") },\r\n                trailingIcon = {\r\n                    IconButton(onClick = {\r\n                        viewModel.searchMusic(searchQuery)\r\n                        focusManager.clearFocus()\r\n                    }) {\r\n                        Icon(Icons.Default.Search, contentDescription = \"Search\")\r\n                    }\r\n                },\r\n                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),\r\n                keyboardActions = KeyboardActions(onSearch = {\r\n                    viewModel.searchMusic(searchQuery)\r\n                    focusManager.clearFocus()\r\n                }),\r\n                singleLine = true\r\n            )\r\n\r\n            Spacer(modifier = Modifier.height(16.dp))\r\n\r\n            if (isLoading) {\r\n                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {\r\n                    CircularProgressIndicator()\r\n                }\r\n            } else if (error != null) {\r\n                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {\r\n                    Text(text = \"Error: $error\", color = MaterialTheme.colorScheme.error)\r\n                }\r\n            } else {\r\n                LazyColumn(\r\n                    modifier = Modifier.fillMaxSize(),\r\n                    contentPadding = PaddingValues(vertical = 8.dp),\r\n                    verticalArrangement = Arrangement.spacedBy(8.dp)\r\n                ) {\r\n                    items(searchResults) { song ->\r\n                        SongItem(\r\n                            song = song,\r\n                            onClick = { viewModel.playSong(song) },\r\n                            viewModel = viewModel\r\n                        )\r\n                    }\r\n                }\r\n            }\r\n        }\r\n\r\n        currentSong?.let { song ->\r\n            MiniPlayerBar(\r\n                songName = song.name,\r\n                artist = song.artist?.joinToString(\", \") ?: \"Unknown Artist\",\r\n                isPlaying = isPlaying,\r\n                onPlayPauseClick = { viewModel.togglePlayPause() },\r\n                onClick = onOpenPlayer,\r\n                modifier = Modifier.align(Alignment.BottomCenter)\r\n            )\r\n        }\r\n    }\r\n}\r\n\r\n@Composable\r\nfun SongItem(song: Song, onClick: () -> Unit, viewModel: SearchViewModel) {\r\n    var albumArtUrl by remember { mutableStateOf<String?>(null) }\r\n    val sourceLabel = remember(song.source) {\r\n        availablePlatforms.find { it.value == song.source }?.label ?: song.source ?: \"\"\r\n    }\r\n\r\n    LaunchedEffect(song.picId) {\r\n        val picId = song.picId\r\n        if (!picId.isNullOrBlank() && albumArtUrl == null) {\r\n            try {\r\n                val url = viewModel.loadAlbumArt(picId)\r\n                if (!url.isNullOrBlank()) albumArtUrl = url\r\n            } catch (_: Exception) { }\r\n        }\r\n    }\r\n\r\n    Card(\r\n        modifier = Modifier\r\n            .fillMaxWidth()\r\n            .clickable(onClick = onClick),\r\n        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)\r\n    ) {\r\n        Row(\r\n            modifier = Modifier\r\n                .fillMaxWidth()\r\n                .padding(8.dp),\r\n            verticalAlignment = Alignment.CenterVertically\r\n        ) {\r\n            // Album art thumbnail\r\n            Box(\r\n                modifier = Modifier\r\n                    .size(48.dp)\r\n                    .clip(RoundedCornerShape(8.dp)),\r\n                contentAlignment = Alignment.Center\r\n            ) {\r\n                if (albumArtUrl != null) {\r\n                    AsyncImage(\r\n                        model = albumArtUrl,\r\n                        contentDescription = \"Album art\",\r\n                        modifier = Modifier.fillMaxSize(),\r\n                        contentScale = ContentScale.Crop\r\n                    )\r\n                } else {\r\n                    Surface(\r\n                        modifier = Modifier.fillMaxSize(),\r\n                        color = MaterialTheme.colorScheme.surfaceVariant,\r\n                        shape = RoundedCornerShape(8.dp)\r\n                    ) {\r\n                        Box(contentAlignment = Alignment.Center) {\r\n                            Icon(\r\n                                Icons.Default.MusicNote,\r\n                                contentDescription = null,\r\n                                modifier = Modifier.size(24.dp),\r\n                                tint = MaterialTheme.colorScheme.onSurfaceVariant\r\n                            )\r\n                        }\r\n                    }\r\n                }\r\n            }\r\n\r\n            Spacer(modifier = Modifier.width(12.dp))\r\n\r\n            Column(modifier = Modifier.weight(1f)) {\r\n                Text(\r\n                    text = song.name,\r\n                    style = MaterialTheme.typography.titleMedium,\r\n                    maxLines = 1,\r\n                    overflow = TextOverflow.Ellipsis\r\n                )\r\n                Spacer(modifier = Modifier.height(2.dp))\r\n                Text(\r\n                    text = song.artist?.joinToString(\", \") ?: \"Unknown Artist\",\r\n                    style = MaterialTheme.typography.bodyMedium,\r\n                    maxLines = 1,\r\n                    overflow = TextOverflow.Ellipsis\r\n                )\r\n            }\r\n\r\n            Spacer(modifier = Modifier.width(8.dp))\r\n\r\n            // Source badge\r\n            if (sourceLabel.isNotBlank()) {\r\n                Surface(\r\n                    shape = RoundedCornerShape(4.dp),\r\n                    color = MaterialTheme.colorScheme.secondaryContainer\r\n                ) {\r\n                    Text(\r\n                        text = sourceLabel,\r\n                        style = MaterialTheme.typography.labelSmall,\r\n                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),\r\n                        color = MaterialTheme.colorScheme.onSecondaryContainer\r\n                    )\r\n                }\r\n            }\r\n        }\r\n    }\r\n}\r\n\r\n@Composable\r\nfun MiniPlayerBar(\r\n    songName: String,\r\n    artist: String,\r\n    isPlaying: Boolean,\r\n    onPlayPauseClick: () -> Unit,\r\n    onClick: () -> Unit,\r\n    modifier: Modifier = Modifier\r\n) {\r\n    Surface(\r\n        modifier = modifier\r\n            .fillMaxWidth()\r\n            .clickable(onClick = onClick),\r\n        tonalElevation = 6.dp,\r\n        shadowElevation = 8.dp,\r\n        color = MaterialTheme.colorScheme.surfaceVariant\r\n    ) {\r\n        Row(\r\n            modifier = Modifier\r\n                .fillMaxWidth()\r\n                .padding(horizontal = 16.dp, vertical = 8.dp),\r\n            verticalAlignment = Alignment.CenterVertically\r\n        ) {\r\n            Column(modifier = Modifier.weight(1f)) {\r\n                Text(\r\n                    text = songName,\r\n                    style = MaterialTheme.typography.titleSmall,\r\n                    maxLines = 1,\r\n                    overflow = TextOverflow.Ellipsis\r\n                )\r\n                Text(\r\n                    text = artist,\r\n                    style = MaterialTheme.typography.bodySmall,\r\n                    maxLines = 1,\r\n                    overflow = TextOverflow.Ellipsis\r\n                )\r\n            }\r\n            IconButton(onClick = onPlayPauseClick) {\r\n                Icon(\r\n                    imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,\r\n                    contentDescription = if (isPlaying) \"Pause\" else \"Play\"\r\n                )\r\n            }\r\n        }\r\n    }\r\n}\r\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/CloudMusicPlayer/app/src/main/java/com/lynchlin/music/ui/SearchScreen.kt b/CloudMusicPlayer/app/src/main/java/com/lynchlin/music/ui/SearchScreen.kt
+--- a/CloudMusicPlayer/app/src/main/java/com/lynchlin/music/ui/SearchScreen.kt	(revision d4ea6a2bcb5b07740c94a9fc3ba430848dc786cf)
++++ b/CloudMusicPlayer/app/src/main/java/com/lynchlin/music/ui/SearchScreen.kt	(date 1778336222809)
+@@ -32,7 +32,8 @@
+ fun SearchScreen(
+     modifier: Modifier = Modifier,
+     viewModel: SearchViewModel = viewModel(),
+-    onOpenPlayer: () -> Unit = {}
++    onOpenPlayer: () -> Unit = {},
++    onOpenNetease: () -> Unit = {}
+ ) {
+     var searchQuery by remember { mutableStateOf("") }
+     val searchResults by viewModel.searchResults.collectAsState()
+@@ -54,6 +55,29 @@
+                     bottom = if (currentSong != null) 72.dp else 16.dp
+                 )
+         ) {
++            // Header row
++            Row(
++                modifier = Modifier.fillMaxWidth(),
++                horizontalArrangement = Arrangement.SpaceBetween,
++                verticalAlignment = Alignment.CenterVertically
++            ) {
++                Text(
++                    "Cloud Music Player",
++                    style = MaterialTheme.typography.titleLarge
++                )
++                TextButton(onClick = onOpenNetease) {
++                    Icon(
++                        Icons.Default.Person,
++                        contentDescription = "My Music",
++                        modifier = Modifier.size(18.dp)
++                    )
++                    Spacer(Modifier.width(4.dp))
++                    Text("My Music")
++                }
++            }
++
++            Spacer(modifier = Modifier.height(8.dp))
++
+             // Platform selector
+             Row(
+                 modifier = Modifier
+Index: CloudMusicPlayer/app/src/main/java/com/lynchlin/music/data/model/netease/NeteaseModels.kt
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/CloudMusicPlayer/app/src/main/java/com/lynchlin/music/data/model/netease/NeteaseModels.kt b/CloudMusicPlayer/app/src/main/java/com/lynchlin/music/data/model/netease/NeteaseModels.kt
+new file mode 100644
+--- /dev/null	(date 1778335520224)
++++ b/CloudMusicPlayer/app/src/main/java/com/lynchlin/music/data/model/netease/NeteaseModels.kt	(date 1778335520224)
+@@ -0,0 +1,114 @@
++package com.lynchlin.music.data.model.netease
++
++import com.lynchlin.music.data.model.Song
++import com.google.gson.annotations.SerializedName
++
++// ----- Login -----
++data class LoginResponse(
++    @SerializedName("code") val code: Int,
++    @SerializedName("account") val account: AccountInfo?,
++    @SerializedName("profile") val profile: UserProfile?,
++    @SerializedName("cookie") val cookie: String?,
++    @SerializedName("token") val token: String?
++)
++
++data class AccountInfo(
++    @SerializedName("id") val id: Long,
++    @SerializedName("userName") val userName: String?
++)
++
++data class UserProfile(
++    @SerializedName("userId") val userId: Long,
++    @SerializedName("nickname") val nickname: String,
++    @SerializedName("avatarUrl") val avatarUrl: String?,
++    @SerializedName("signature") val signature: String?,
++    @SerializedName("backgroundUrl") val backgroundUrl: String?
++)
++
++data class LoginStatusResponse(
++    @SerializedName("code") val code: Int,
++    @SerializedName("account") val account: AccountInfo?,
++    @SerializedName("profile") val profile: UserProfile?
++)
++
++// ----- Playlist -----
++data class UserPlaylistResponse(
++    @SerializedName("code") val code: Int,
++    @SerializedName("playlist") val playlist: List<NeteasePlaylist>?,
++    @SerializedName("more") val more: Boolean?
++)
++
++data class NeteasePlaylist(
++    @SerializedName("id") val id: Long,
++    @SerializedName("name") val name: String,
++    @SerializedName("trackCount") val trackCount: Int,
++    @SerializedName("coverImgUrl") val coverImgUrl: String?,
++    @SerializedName("playCount") val playCount: Long?,
++    @SerializedName("description") val description: String?,
++    @SerializedName("creator") val creator: PlaylistCreator?
++)
++
++data class PlaylistCreator(
++    @SerializedName("nickname") val nickname: String,
++    @SerializedName("userId") val userId: Long
++)
++
++data class PlaylistDetailResponse(
++    @SerializedName("code") val code: Int,
++    @SerializedName("playlist") val playlist: PlaylistDetail?
++)
++
++data class PlaylistDetail(
++    @SerializedName("id") val id: Long,
++    @SerializedName("name") val name: String,
++    @SerializedName("tracks") val tracks: List<NeteaseTrack>?,
++    @SerializedName("trackCount") val trackCount: Int?,
++    @SerializedName("coverImgUrl") val coverImgUrl: String?
++)
++
++// ----- Track -----
++data class NeteaseTrack(
++    @SerializedName("id") val id: Long,
++    @SerializedName("name") val name: String,
++    @SerializedName("ar") val artists: List<NeteaseArtist>?,
++    @SerializedName("al") val album: NeteaseAlbum?,
++    @SerializedName("dt") val duration: Long?
++) {
++    fun toSong(source: String = "netease"): Song = Song(
++        id = this.id,
++        name = this.name,
++        artist = this.artists?.map { it.name },
++        album = this.album?.name,
++        picId = this.album?.id?.toString(),
++        urlId = this.id.toString(),
++        lyricId = this.id.toString(),
++        source = source
++    )
++}
++
++data class NeteaseArtist(
++    @SerializedName("id") val id: Long,
++    @SerializedName("name") val name: String
++)
++
++data class NeteaseAlbum(
++    @SerializedName("id") val id: Long,
++    @SerializedName("name") val name: String,
++    @SerializedName("picUrl") val picUrl: String?
++)
++
++// ----- Daily Recommend -----
++data class DailyRecommendResponse(
++    @SerializedName("code") val code: Int,
++    @SerializedName("data") val data: DailyRecommendData?
++)
++
++data class DailyRecommendData(
++    @SerializedName("dailySongs") val dailySongs: List<NeteaseTrack>?
++)
++
++// ----- Personal FM -----
++data class PersonalFmResponse(
++    @SerializedName("code") val code: Int,
++    @SerializedName("data") val data: List<NeteaseTrack>?
++)

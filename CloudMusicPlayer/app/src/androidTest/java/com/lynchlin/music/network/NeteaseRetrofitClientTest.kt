@@ -22,7 +22,6 @@ class NeteaseRetrofitClientTest {
     @After
     fun tearDown() {
         NeteaseRetrofitClient.invalidate()
-        NeteaseRetrofitClient.invalidateDirect()
         NeteaseSettings.cookie = ""
         NeteaseSettings.uid = 0L
     }
@@ -48,49 +47,11 @@ class NeteaseRetrofitClientTest {
     }
 
     @Test
-    fun `getDirectService returns non-null service`() {
-        val service = NeteaseRetrofitClient.getDirectService()
-        assertNotNull(service)
-    }
-
-    @Test
-    fun `getDirectService caches service`() {
-        val s1 = NeteaseRetrofitClient.getDirectService()
-        val s2 = NeteaseRetrofitClient.getDirectService()
-        assertSame(s1, s2)
-    }
-
-    @Test
-    fun `getDirectCookieJar returns non-null after getDirectService`() {
-        NeteaseRetrofitClient.getDirectService()
-        val cookieJar = NeteaseRetrofitClient.getDirectCookieJar()
-        assertNotNull(cookieJar)
-    }
-
-    @Test
     fun `invalidate clears proxy service cache`() {
         val s1 = NeteaseRetrofitClient.getProxyService("http://127.0.0.1:3000")
         NeteaseRetrofitClient.invalidate()
         val s2 = NeteaseRetrofitClient.getProxyService("http://127.0.0.1:3000")
         assertNotSame(s1, s2)
-    }
-
-    @Test
-    fun `invalidateDirect clears direct service cache`() {
-        val s1 = NeteaseRetrofitClient.getDirectService()
-        val cj1 = NeteaseRetrofitClient.getDirectCookieJar()
-        NeteaseRetrofitClient.invalidateDirect()
-        val s2 = NeteaseRetrofitClient.getDirectService()
-        val cj2 = NeteaseRetrofitClient.getDirectCookieJar()
-        assertNotSame(s1, s2)
-        assertNotSame(cj1, cj2)
-    }
-
-    @Test
-    fun `NeteaseApiMode enum check`() {
-        assertEquals(2, NeteaseApiMode.entries.size)
-        assertEquals(NeteaseApiMode.PROXY, NeteaseApiMode.valueOf("PROXY"))
-        assertEquals(NeteaseApiMode.DIRECT, NeteaseApiMode.valueOf("DIRECT"))
     }
 
     @Test

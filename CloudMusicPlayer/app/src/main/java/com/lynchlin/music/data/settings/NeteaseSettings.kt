@@ -11,7 +11,6 @@ object NeteaseSettings {
     private const val KEY_UID = "netease_uid"
     private const val KEY_NICKNAME = "netease_nickname"
     private const val KEY_PHONE = "netease_phone"
-    private const val KEY_DIRECT_MODE = "netease_direct_mode"
 
     private var prefs: SharedPreferences? = null
 
@@ -40,10 +39,6 @@ object NeteaseSettings {
     var phone: String
         get() = prefs?.getString(KEY_PHONE, "") ?: ""
         set(value) { prefs?.edit { putString(KEY_PHONE, value) } }
-
-    var directMode: Boolean
-        get() = prefs?.getBoolean(KEY_DIRECT_MODE, false) ?: false
-        set(value) { prefs?.edit { putBoolean(KEY_DIRECT_MODE, value) } }
 
     fun isLoggedIn(): Boolean = cookie.isNotBlank() && uid > 0
 

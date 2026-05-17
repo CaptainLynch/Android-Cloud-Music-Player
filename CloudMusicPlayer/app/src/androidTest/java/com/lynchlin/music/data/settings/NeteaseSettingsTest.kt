@@ -30,7 +30,6 @@ class NeteaseSettingsTest {
         NeteaseSettings.uid = 0L
         NeteaseSettings.nickname = ""
         NeteaseSettings.phone = ""
-        NeteaseSettings.directMode = false
     }
 
     @Test
@@ -66,19 +65,6 @@ class NeteaseSettingsTest {
     fun `phone read after write`() {
         NeteaseSettings.phone = "13800138000"
         assertEquals("13800138000", NeteaseSettings.phone)
-    }
-
-    @Test
-    fun `directMode default is false`() {
-        assertFalse(NeteaseSettings.directMode)
-    }
-
-    @Test
-    fun `directMode read after write`() {
-        NeteaseSettings.directMode = true
-        assertTrue(NeteaseSettings.directMode)
-        NeteaseSettings.directMode = false
-        assertFalse(NeteaseSettings.directMode)
     }
 
     @Test
@@ -121,11 +107,9 @@ class NeteaseSettingsTest {
     }
 
     @Test
-    fun `logout does not affect apiUrl and directMode`() {
+    fun `logout does not affect apiUrl`() {
         NeteaseSettings.apiUrl = "http://test.com:3000"
-        NeteaseSettings.directMode = true
         NeteaseSettings.logout()
         assertEquals("http://test.com:3000", NeteaseSettings.apiUrl)
-        assertTrue(NeteaseSettings.directMode)
     }
 }

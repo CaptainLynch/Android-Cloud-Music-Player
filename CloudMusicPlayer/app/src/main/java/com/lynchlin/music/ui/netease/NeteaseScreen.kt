@@ -29,7 +29,6 @@ import coil.compose.AsyncImage
 import com.lynchlin.music.data.model.NeteasePlaylist
 import com.lynchlin.music.data.model.NeteaseTrack
 import com.lynchlin.music.data.model.PersonalizedPlaylist
-import com.lynchlin.music.data.settings.NeteaseSettings
 import com.lynchlin.music.player.MusicPlayerManager
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -451,6 +450,7 @@ private fun PlaylistDetailScreen(
     val error by viewModel.error.collectAsState()
     val currentSong by MusicPlayerManager.currentSong.collectAsState()
     val isPlaying by MusicPlayerManager.isPlaying.collectAsState()
+    val intelligenceSongs by viewModel.intelligenceSongs.collectAsState()
 
     Scaffold(
         modifier = modifier,
@@ -473,13 +473,56 @@ private fun PlaylistDetailScreen(
             Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                 Text(error ?: "", color = MaterialTheme.colorScheme.error)
             }
-        } else if (tracks.isEmpty()) {
+        } else if (tracks.isEmpty() && intelligenceSongs.isEmpty()) {
             Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                 Text("暂无歌曲", color = MaterialTheme.colorScheme.outline)
             }
+        } else if (intelligenceSongs.isNotEmpty()) {
+            // Intelligence mode view
+            Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.Favorite,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        "心动模式",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(Modifier.weight(1f))
+                    OutlinedButton(onClick = { viewModel.clearIntelligence() }) {
+                        Text("返回歌单")
+                    }
+                }
+                HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                LazyColumn(
+                    contentPadding = PaddingValues(vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    itemsIndexed(intelligenceSongs) { index, track ->
+                        val isCurrent = track.id == currentSong?.id
+                        TrackRow(
+                            track = track,
+                            index = index,
+                            onClick = { viewModel.playIntelligenceSong(index) },
+                            isCurrent = isCurrent,
+                            isPlaying = isCurrent && isPlaying
+                        )
+                    }
+                }
+            }
         } else {
             Column(modifier = Modifier.fillMaxSize().padding(padding)) {
-                // Play all button
+                // Play all button + Intelligence mode button
                 playlist?.let { p ->
                     Row(
                         modifier = Modifier
@@ -513,6 +556,18 @@ private fun PlaylistDetailScreen(
                             Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(4.dp))
                             Text("播放全部")
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        FilledTonalButton(onClick = {
+                            val songId = tracks.firstOrNull()?.id
+                            val playlistId = playlist?.id
+                            if (songId != null && playlistId != null) {
+                                viewModel.loadIntelligence(songId, playlistId)
+                            }
+                        }) {
+                            Icon(Icons.Default.Favorite, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text("心动模式")
                         }
                     }
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
@@ -645,13 +700,8 @@ private fun LoginSettingsScreen(
     var apiUrlField by remember { mutableStateOf(viewModel.apiUrl) }
     var phoneField by remember { mutableStateOf(viewModel.savedPhone) }
     var passwordField by remember { mutableStateOf("") }
-    var directMode by remember { mutableStateOf(NeteaseSettings.directMode) }
-    var showModeChangeDialog by remember { mutableStateOf(false) }
-    var connectionStatus by remember { mutableStateOf<String?>(null) }
-    var isTestingConnection by remember { mutableStateOf(false) }
     val loginError by viewModel.loginError.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
-    val viewModelDirectMode by viewModel.directMode.collectAsState()
 
     Scaffold(
         modifier = modifier,
@@ -676,112 +726,22 @@ private fun LoginSettingsScreen(
             // API Server Config
             item {
                 Text("API 服务器配置", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(4.dp))
-                if (viewModelDirectMode) {
-                    Card(
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(
-                            text = "当前为直连模式，无需配置代理服务器地址。如需使用歌单功能，请切换至代理模式。",
-                            modifier = Modifier.padding(12.dp),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                } else {
-                    Spacer(Modifier.height(8.dp))
-                    OutlinedTextField(
-                        value = apiUrlField,
-                        onValueChange = {
-                            apiUrlField = it
-                            viewModel.saveApiUrl(it)
-                            connectionStatus = null
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text("NeteaseCloudMusicApi 地址") },
-                        placeholder = { Text(NeteaseSettings.DEFAULT_API_URL) },
-                        supportingText = {
-                            Text("部署 NeteaseCloudMusicApiEnhanced 后的服务器地址")
-                        },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                        trailingIcon = {
-                            if (isTestingConnection) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(20.dp),
-                                    strokeWidth = 2.dp
-                                )
-                            } else {
-                                IconButton(
-                                    onClick = {
-                                        isTestingConnection = true
-                                        connectionStatus = null
-                                        viewModel.testProxyConnection(apiUrlField) { ok, msg ->
-                                            isTestingConnection = false
-                                            connectionStatus = if (ok) "✅ $msg" else "❌ $msg"
-                                        }
-                                    }
-                                ) {
-                                    Icon(
-                                        Icons.Default.Refresh,
-                                        contentDescription = "测试连接",
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                }
-                            }
-                        }
-                    )
-
-                    connectionStatus?.let { status ->
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            text = status,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = if (status.startsWith("✅"))
-                                MaterialTheme.colorScheme.primary
-                            else
-                                MaterialTheme.colorScheme.error
-                        )
-                    }
-                }
-            }
-
-            // Direct / Proxy Mode
-            item {
-                HorizontalDivider()
                 Spacer(Modifier.height(8.dp))
-                Text("连接模式", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(8.dp))
-                Row(
+                OutlinedTextField(
+                    value = apiUrlField,
+                    onValueChange = {
+                        apiUrlField = it
+                        viewModel.saveApiUrl(it)
+                    },
                     modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = if (directMode) "直连模式" else "代理模式",
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                        Text(
-                            text = if (directMode)
-                                "直连官方网易云 API · 支持登录+每日推荐+播放 · 不含歌单"
-                            else
-                                "通过代理服务器访问 · 全功能支持",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Switch(
-                        checked = directMode,
-                        onCheckedChange = {
-                            showModeChangeDialog = true
-                        },
-                        enabled = !isTestingConnection
-                    )
-                }
+                    label = { Text("NeteaseCloudMusicApi 地址") },
+                    placeholder = { Text("http://127.0.0.1:3000") },
+                    supportingText = {
+                        Text("部署 Binaryify/NeteaseCloudMusicApi 后的服务地址")
+                    },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done)
+                )
             }
 
             // Login status
@@ -921,35 +881,6 @@ private fun LoginSettingsScreen(
                     color = MaterialTheme.colorScheme.outline
                 )
             }
-        }
-
-        if (showModeChangeDialog) {
-            AlertDialog(
-                onDismissRequest = { showModeChangeDialog = false },
-                title = { Text("切换连接模式") },
-                text = {
-                    Text("切换模式将清空登录状态，需要重新登录，是否继续？")
-                },
-                confirmButton = {
-                    TextButton(onClick = {
-                        showModeChangeDialog = false
-                        directMode = !directMode
-                        NeteaseSettings.directMode = directMode
-                        if (viewModel.isLoggedIn) {
-                            viewModel.logout()
-                        }
-                    }) {
-                        Text("确认切换")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = {
-                        showModeChangeDialog = false
-                    }) {
-                        Text("取消")
-                    }
-                }
-            )
         }
     }
 }
