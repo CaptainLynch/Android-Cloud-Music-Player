@@ -93,6 +93,14 @@ fun SearchScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            Text(
+                text = "v${com.lynchlin.music.BuildConfig.VERSION_NAME} | ${com.lynchlin.music.BuildConfig.BUILD_TIME}",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+            )
+
+            Spacer(modifier = Modifier.height(4.dp))
+
             OutlinedTextField(
                 value = searchQuery,
                 onValueChange = { searchQuery = it },
