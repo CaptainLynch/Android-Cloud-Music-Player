@@ -48,6 +48,7 @@ fun SearchScreen(
     val isPlaying by viewModel.isPlaying.collectAsState()
     val searchPlatform by viewModel.searchPlatform.collectAsState()
     val favoriteIds by viewModel.favoriteIds.collectAsState()
+    val debugLog by viewModel.debugLog.collectAsState()
     val sourceLabel = searchPlatform.label
     val focusManager = LocalFocusManager.current
 
@@ -100,6 +101,15 @@ fun SearchScreen(
             )
 
             Spacer(modifier = Modifier.height(4.dp))
+
+            if (debugLog.isNotBlank()) {
+                Text(
+                    text = debugLog,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+            }
 
             OutlinedTextField(
                 value = searchQuery,

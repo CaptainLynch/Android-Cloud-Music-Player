@@ -48,6 +48,14 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
     val currentSong = MusicPlayerManager.currentSong
     val isCurrentSongFavorite = MusicPlayerManager.isCurrentSongFavorite
 
+    private val _debugLog = MutableStateFlow("")
+    val debugLog: StateFlow<String> = _debugLog.asStateFlow()
+
+    private fun debug(msg: String) {
+        _debugLog.value = msg
+        android.util.Log.d("MusicApp", msg)
+    }
+
     init {
         FavoritesRepository.init(application)
         MusicPlayerManager.init(application)
@@ -68,11 +76,13 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
             _isLoading.value = true
             _error.value = null
             try {
+                debug("搜索中: platform=${platform.value}, keyword=$keyword")
                 val metingSongs = RetrofitClient.apiService.searchMusic(
                     server = platform.value,
                     keyword = keyword
                 )
                 _searchPlatform.value = platform
+                debug("API返回 ${metingSongs.size} 首歌曲")
                 val songs = metingSongs.mapIndexed { index, ms ->
                     Song(
                         id = (ms.url.hashCode().toLong() shl 32) or (index.toLong() and 0xFFFFFFFF),
@@ -137,10 +147,13 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     private fun playSongFromQueue(song: Song) {
-        val audioUrl = song.urlId ?: run {
+        val audioUrl = song.urlId
+        if (audioUrl == null) {
+            debug("ERROR: urlId is null for '${song.name}'")
             _error.value = "No playable URL for: ${song.name}"
             return
         }
+        debug("播放: ${song.name}, URL=${audioUrl.take(60)}...")
         viewModelScope.launch {
             try {
                 MusicPlayerManager.playExternalUrl(audioUrl, song)

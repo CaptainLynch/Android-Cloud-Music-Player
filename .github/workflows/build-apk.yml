@@ -46,11 +46,22 @@ jobs:
         working-directory: CloudMusicPlayer
         run: ./gradlew assembleRelease --no-daemon --stacktrace
 
-      - name: Upload APK Artifact
+      - name: Build Debug APK
+        working-directory: CloudMusicPlayer
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Upload Release APK
         uses: actions/upload-artifact@v4
         with:
           name: CloudMusicPlayer-release
           path: CloudMusicPlayer/app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+
+      - name: Upload Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: CloudMusicPlayer-debug
+          path: CloudMusicPlayer/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
 
       - name: Create GitHub Release
@@ -58,6 +69,8 @@ jobs:
         with:
           name: Latest Build
           tag_name: release-latest
-          files: CloudMusicPlayer/app/build/outputs/apk/release/*.apk
+          files: |
+            CloudMusicPlayer/app/build/outputs/apk/release/*.apk
+            CloudMusicPlayer/app/build/outputs/apk/debug/*.apk
           prerelease: true
           generate_release_notes: true
