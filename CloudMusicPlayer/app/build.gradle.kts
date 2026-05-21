@@ -19,7 +19,7 @@ android {
         versionCode = 3
         versionName = "1.2"
 
-        buildConfigField("String", "BUILD_TIME", "\"${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault()).format(java.util.Date())}\"")
+        buildConfigField("Long", "BUILD_TIMESTAMP", "${System.currentTimeMillis()}L")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

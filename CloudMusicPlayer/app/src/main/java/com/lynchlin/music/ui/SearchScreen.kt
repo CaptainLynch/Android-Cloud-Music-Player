@@ -94,7 +94,7 @@ fun SearchScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                text = "v${com.lynchlin.music.BuildConfig.VERSION_NAME} | ${com.lynchlin.music.BuildConfig.BUILD_TIME}",
+                text = "v${com.lynchlin.music.BuildConfig.VERSION_NAME} | ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault()).format(java.util.Date(com.lynchlin.music.BuildConfig.BUILD_TIMESTAMP))}",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
             )
