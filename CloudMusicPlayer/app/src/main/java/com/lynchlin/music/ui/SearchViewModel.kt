@@ -68,29 +68,26 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
             _isLoading.value = true
             _error.value = null
             try {
-                val response = RetrofitClient.apiService.searchMusic(
+                val metingSongs = RetrofitClient.apiService.searchMusic(
+                    server = platform.value,
                     keyword = keyword
                 )
                 _searchPlatform.value = platform
-                if (response.code == 200 && response.result?.songs != null) {
-                    val songs = response.result.songs.map { neteaseSong ->
-                        Song(
-                            id = neteaseSong.id,
-                            name = neteaseSong.name,
-                            artist = neteaseSong.artists?.map { it.name },
-                            album = neteaseSong.album?.name,
-                            picId = neteaseSong.album?.picId?.toString() ?: "",
-                            urlId = neteaseSong.id.toString(),
-                            lyricId = neteaseSong.id.toString(),
-                            source = platform.value
-                        )
-                    }
-                    _searchResults.value = songs
-                } else {
-                    _searchResults.value = emptyList()
+                val songs = metingSongs.mapIndexed { index, ms ->
+                    Song(
+                        id = (ms.url.hashCode().toLong() shl 32) or (index.toLong() and 0xFFFFFFFF),
+                        name = ms.title,
+                        artist = listOf(ms.author),
+                        album = null,
+                        picId = ms.pic,
+                        urlId = ms.url,
+                        lyricId = ms.lrc,
+                        source = platform.value
+                    )
                 }
+                _searchResults.value = songs
             } catch (e: Exception) {
-                _error.value = e.message ?: "Failed to fetch data"
+                _error.value = e.message ?: "搜索失败"
                 e.printStackTrace()
             } finally {
                 _isLoading.value = false
@@ -140,19 +137,13 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     private fun playSongFromQueue(song: Song) {
-        val urlId = song.urlId ?: run {
+        val audioUrl = song.urlId ?: run {
             _error.value = "No playable URL for: ${song.name}"
             return
         }
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.getSongUrl(id = urlId)
-                val url = response.data?.firstOrNull()?.url
-                if (url != null) {
-                    MusicPlayerManager.playExternalUrl(url, song)
-                } else {
-                    _error.value = "无法获取播放链接: ${song.name}"
-                }
+                MusicPlayerManager.playExternalUrl(audioUrl, song)
             } catch (e: Exception) {
                 _error.value = e.message ?: "Failed to load song URL"
                 e.printStackTrace()
@@ -163,12 +154,8 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
     suspend fun loadAlbumArt(picId: String): String? {
         _albumArtCache[picId]?.let { return it }
         return try {
-            val response = RetrofitClient.apiService.getSongDetail(id = picId)
-            val url = response.songs?.firstOrNull()?.album?.picUrl
-            if (url != null) {
-                _albumArtCache[picId] = url
-            }
-            url
+            _albumArtCache[picId] = picId
+            picId
         } catch (_: Exception) {
             null
         }
@@ -177,12 +164,13 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
     suspend fun loadLyric(lyricId: String): String? {
         _lyricCache[lyricId]?.let { return it }
         return try {
-            val response = RetrofitClient.apiService.getLyric(id = lyricId)
-            val lyric = response.lyric
-            if (lyric != null) {
-                _lyricCache[lyricId] = lyric
+            val request = okhttp3.Request.Builder().url(lyricId).build()
+            val response = okhttp3.OkHttpClient().newCall(request).execute()
+            val body = response.body?.string()
+            if (body != null) {
+                _lyricCache[lyricId] = body
             }
-            lyric
+            body
         } catch (_: Exception) {
             null
         }
