@@ -73,8 +73,10 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                     type = platform.value
                 )
                 _searchPlatform.value = platform
-                // AD-009: 客户端侧 source 防御性过滤 — GD Studio API 服务端过滤不可靠
-                _searchResults.value = results.filter { it.source == platform.value }
+                // AD-009: GD Studio API 服务端 source 字段返回不可靠
+                // 临时方案：不过滤，直接显示所有结果
+                // 后续切换API后恢复过滤
+                _searchResults.value = results
             } catch (e: Exception) {
                 _error.value = e.message ?: "Failed to fetch data"
                 e.printStackTrace()
