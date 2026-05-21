@@ -5,7 +5,6 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.lynchlin.music.data.model.Song
 import com.lynchlin.music.data.repository.FavoritesRepository
-import com.lynchlin.music.network.RetrofitClient
 import com.lynchlin.music.player.MusicPlayerManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

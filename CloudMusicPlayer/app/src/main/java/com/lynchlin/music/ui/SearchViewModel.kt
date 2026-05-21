@@ -165,7 +165,11 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
         _lyricCache[lyricId]?.let { return it }
         return try {
             val request = okhttp3.Request.Builder().url(lyricId).build()
-            val response = okhttp3.OkHttpClient().newCall(request).execute()
+            val response = kotlinx.coroutines.Dispatchers.IO.let { dispatcher ->
+                kotlinx.coroutines.withContext(dispatcher) {
+                    RetrofitClient.okHttpClient.newCall(request).execute()
+                }
+            }
             val body = response.body?.string()
             if (body != null) {
                 _lyricCache[lyricId] = body
