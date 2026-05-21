@@ -41,9 +41,12 @@ class FavoritesViewModel(application: Application) : AndroidViewModel(applicatio
     suspend fun loadAlbumArt(picId: String): String? {
         _albumArtCache[picId]?.let { return it }
         return try {
-            val response = RetrofitClient.apiService.getAlbumArt(id = picId)
-            _albumArtCache[picId] = response.url
-            response.url
+            val response = RetrofitClient.apiService.getSongDetail(id = picId)
+            val url = response.songs?.firstOrNull()?.album?.picUrl
+            if (url != null) {
+                _albumArtCache[picId] = url
+            }
+            url
         } catch (_: Exception) {
             null
         }
@@ -83,14 +86,15 @@ class FavoritesViewModel(application: Application) : AndroidViewModel(applicatio
             _error.value = "No playable URL for: ${song.name}"
             return
         }
-        val source = song.source ?: "netease"
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.getSongUrl(
-                    id = urlId,
-                    source = source
-                )
-                MusicPlayerManager.playExternalUrl(response.url, song)
+                val response = RetrofitClient.apiService.getSongUrl(id = urlId)
+                val url = response.data?.firstOrNull()?.url
+                if (url != null) {
+                    MusicPlayerManager.playExternalUrl(url, song)
+                } else {
+                    _error.value = "无法获取播放链接: ${song.name}"
+                }
             } catch (e: Exception) {
                 _error.value = e.message ?: "Failed to load song URL"
                 e.printStackTrace()
