@@ -196,7 +196,25 @@ object MusicPlayerManager {
     }
 
     fun playExternalUrl(url: String, song: Song) {
-        val player = exoPlayer ?: return
+        val player = exoPlayer
+        if (player == null) {
+            android.util.Log.e("MusicPlayer", "ExoPlayer not ready, retrying in 500ms")
+            scope.launch {
+                kotlinx.coroutines.delay(500)
+                val retryPlayer = exoPlayer
+                if (retryPlayer == null) {
+                    android.util.Log.e("MusicPlayer", "ExoPlayer still not ready after retry")
+                    return@launch
+                }
+                _currentSong.value = song
+                retryPlayer.stop()
+                retryPlayer.setMediaItem(MediaItem.fromUri(url))
+                retryPlayer.prepare()
+                retryPlayer.play()
+                updateFavoriteStatus(song)
+            }
+            return
+        }
         _currentSong.value = song
         player.stop()
         player.setMediaItem(MediaItem.fromUri(url))
