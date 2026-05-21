@@ -132,7 +132,9 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
             _error.value = "No playable URL for: ${song.name}"
             return
         }
-        val source = song.source ?: "netease"
+        // BUG-005: GD Studio API 返回的 source 字段不可靠
+        // 使用用户选择的搜索平台作为 source
+        val source = _searchPlatform.value.value
         viewModelScope.launch {
             try {
                 val response = RetrofitClient.apiService.getSongUrl(
