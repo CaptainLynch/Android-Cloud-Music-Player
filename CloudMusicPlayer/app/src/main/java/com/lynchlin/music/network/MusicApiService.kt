@@ -2,36 +2,32 @@ package com.lynchlin.music.network
 
 import com.lynchlin.music.data.model.AlbumArtResponse
 import com.lynchlin.music.data.model.LyricResponse
+import com.lynchlin.music.data.model.NeteaseSearchResponse
+import com.lynchlin.music.data.model.NeteaseSongDetailResponse
+import com.lynchlin.music.data.model.NeteaseSongUrlResponse
 import com.lynchlin.music.data.model.Song
-import com.lynchlin.music.data.model.SongUrlResponse
 import retrofit2.http.GET
 import retrofit2.http.Query
 
 interface MusicApiService {
 
-    @GET("api.php")
+    @GET("search")
     suspend fun searchMusic(
-        @Query("types") types: String = "search",
-        @Query("type") type: String = "netease",
-        @Query("name") keyword: String
-    ): List<Song>
+        @Query("keywords") keyword: String
+    ): NeteaseSearchResponse
 
-    @GET("api.php")
+    @GET("song/url")
     suspend fun getSongUrl(
-        @Query("types") types: String = "url",
-        @Query("id") id: String,
-        @Query("source") source: String
-    ): SongUrlResponse
-
-    @GET("api.php")
-    suspend fun getAlbumArt(
-        @Query("types") types: String = "pic",
         @Query("id") id: String
-    ): AlbumArtResponse
+    ): NeteaseSongUrlResponse
 
-    @GET("api.php")
+    @GET("song/detail")
+    suspend fun getSongDetail(
+        @Query("ids") id: String
+    ): NeteaseSongDetailResponse
+
+    @GET("lyric")
     suspend fun getLyric(
-        @Query("types") types: String = "lyric",
         @Query("id") id: String
     ): LyricResponse
 }

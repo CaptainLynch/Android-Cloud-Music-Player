@@ -68,15 +68,27 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
             _isLoading.value = true
             _error.value = null
             try {
-                val results = RetrofitClient.apiService.searchMusic(
-                    keyword = keyword,
-                    type = platform.value
+                val response = RetrofitClient.apiService.searchMusic(
+                    keyword = keyword
                 )
                 _searchPlatform.value = platform
-                // AD-009: GD Studio API 服务端 source 字段返回不可靠
-                // 临时方案：不过滤，直接显示所有结果
-                // 后续切换API后恢复过滤
-                _searchResults.value = results
+                if (response.code == 200 && response.result?.songs != null) {
+                    val songs = response.result.songs.map { neteaseSong ->
+                        Song(
+                            id = neteaseSong.id,
+                            name = neteaseSong.name,
+                            artist = neteaseSong.artists?.map { it.name },
+                            album = neteaseSong.album?.name,
+                            picId = neteaseSong.album?.picId?.toString() ?: "",
+                            urlId = neteaseSong.id.toString(),
+                            lyricId = neteaseSong.id.toString(),
+                            source = platform.value
+                        )
+                    }
+                    _searchResults.value = songs
+                } else {
+                    _searchResults.value = emptyList()
+                }
             } catch (e: Exception) {
                 _error.value = e.message ?: "Failed to fetch data"
                 e.printStackTrace()
@@ -132,16 +144,15 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
             _error.value = "No playable URL for: ${song.name}"
             return
         }
-        // BUG-005: GD Studio API 返回的 source 字段不可靠
-        // 使用用户选择的搜索平台作为 source
-        val source = _searchPlatform.value.value
         viewModelScope.launch {
             try {
-                val response = RetrofitClient.apiService.getSongUrl(
-                    id = urlId,
-                    source = source
-                )
-                MusicPlayerManager.playExternalUrl(response.url, song)
+                val response = RetrofitClient.apiService.getSongUrl(id = urlId)
+                val url = response.data?.firstOrNull()?.url
+                if (url != null) {
+                    MusicPlayerManager.playExternalUrl(url, song)
+                } else {
+                    _error.value = "无法获取播放链接: ${song.name}"
+                }
             } catch (e: Exception) {
                 _error.value = e.message ?: "Failed to load song URL"
                 e.printStackTrace()
@@ -152,9 +163,12 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
     suspend fun loadAlbumArt(picId: String): String? {
         _albumArtCache[picId]?.let { return it }
         return try {
-            val response = RetrofitClient.apiService.getAlbumArt(id = picId)
-            _albumArtCache[picId] = response.url
-            response.url
+            val response = RetrofitClient.apiService.getSongDetail(id = picId)
+            val url = response.songs?.firstOrNull()?.album?.picUrl
+            if (url != null) {
+                _albumArtCache[picId] = url
+            }
+            url
         } catch (_: Exception) {
             null
         }
@@ -165,7 +179,9 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
         return try {
             val response = RetrofitClient.apiService.getLyric(id = lyricId)
             val lyric = response.lyric
-            if (lyric != null) _lyricCache[lyricId] = lyric
+            if (lyric != null) {
+                _lyricCache[lyricId] = lyric
+            }
             lyric
         } catch (_: Exception) {
             null
