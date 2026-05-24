@@ -85,6 +85,9 @@ class NeteaseViewModel(application: Application) : AndroidViewModel(application)
                 true
             } else false
         }
+        MusicPlayerManager.onPlaybackError = { msg ->
+            _error.value = msg
+        }
     }
 
     private fun api(): NeteaseApiService =

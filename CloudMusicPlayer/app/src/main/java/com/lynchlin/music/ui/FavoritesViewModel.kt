@@ -29,6 +29,9 @@ class FavoritesViewModel(application: Application) : AndroidViewModel(applicatio
         MusicPlayerManager.onSongReady = { song ->
             playSongFromQueue(song)
         }
+        MusicPlayerManager.onPlaybackError = { msg ->
+            _error.value = msg
+        }
     }
 
     fun toggleFavorite(song: Song) {

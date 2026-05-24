@@ -18,7 +18,6 @@ val availablePlatforms = listOf(
     Platform("netease", "网易云"),
     Platform("kugou", "酷狗"),
     Platform("kuwo", "酷我"),
-    Platform("migu", "咪咕"),
 )
 
 class SearchViewModel(application: Application) : AndroidViewModel(application) {
@@ -62,6 +61,9 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
         MusicPlayerManager.onSongReady = { song ->
             playSongFromQueue(song)
         }
+        MusicPlayerManager.onPlaybackError = { msg ->
+            _error.value = msg
+        }
     }
 
     fun setPlatform(platform: Platform) {
@@ -94,7 +96,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                         lyricId = ms.lrc,
                         source = platform.value
                     )
-                }
+                }.filter { !it.urlId.isNullOrBlank() && "undefined" !in it.urlId!! }
                 _searchResults.value = songs
             } catch (e: Exception) {
                 _error.value = e.message ?: "搜索失败"

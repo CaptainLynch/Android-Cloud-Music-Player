@@ -3,6 +3,7 @@ package com.lynchlin.music.player
 import android.content.Context
 import android.content.Intent
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import com.lynchlin.music.data.model.Song
@@ -46,6 +47,7 @@ object MusicPlayerManager {
 
     var onSongReady: ((Song) -> Unit) = {}
     var onTrackEnded: (() -> Boolean)? = null
+    var onPlaybackError: ((String) -> Unit)? = null
 
     internal fun bindPlayer(player: ExoPlayer, svc: MediaPlaybackService) {
         if (exoPlayer != null) return
@@ -67,6 +69,18 @@ object MusicPlayerManager {
                 if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_SEEK) return
                 _duration.value = player.duration
                 _currentPosition.value = 0L
+            }
+
+            override fun onPlayerError(error: PlaybackException) {
+                val songName = _currentSong.value?.name ?: "未知歌曲"
+                val msg = when (error.errorCode) {
+                    PlaybackException.ERROR_CODE_IO_UNAUTHORIZED,
+                    PlaybackException.ERROR_CODE_IO_FORBIDDEN -> "播放失败：该音源暂不可用，请尝试其他平台"
+                    PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
+                    PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT -> "播放失败：网络连接异常"
+                    else -> "播放失败：${error.message ?: "未知错误"}"
+                }
+                onPlaybackError?.invoke(msg)
             }
         })
 
