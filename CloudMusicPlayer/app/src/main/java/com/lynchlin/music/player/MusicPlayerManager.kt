@@ -104,9 +104,12 @@ object MusicPlayerManager {
                     Player.STATE_ENDED -> "STATE_ENDED"
                     else -> "UNKNOWN($playbackState)"
                 }
-                android.util.Log.d("MusicPlayer", "Playback state changed: $stateName")
+                android.util.Log.d("MusicPlayer", "Playback state changed: $stateName, song=${_currentSong.value?.name}")
                 if (playbackState == Player.STATE_READY) {
                     _duration.value = player.duration
+                }
+                if (playbackState == Player.STATE_BUFFERING) {
+                    android.util.Log.d("MusicPlayer", "Buffering... mediaItem=${player.currentMediaItem?.localConfiguration?.uri}")
                 }
             }
 
@@ -280,7 +283,7 @@ object MusicPlayerManager {
     }
 
     fun playExternalUrl(url: String, song: Song) {
-        android.util.Log.d("MusicPlayer", "playExternalUrl: song=${song.name}, url=${url.take(80)}")
+        android.util.Log.d("MusicPlayer", "playExternalUrl: song=${song.name}, url=${url.take(120)}")
 
         // 验证 URL 格式
         if (url.isBlank() || !url.startsWith("http")) {
@@ -304,35 +307,22 @@ object MusicPlayerManager {
                 _currentSong.value = song
                 _currentPosition.value = 0L
                 _duration.value = 0L
-                startPlaybackInternal(retryPlayer, url, song)
+                retryPlayer.stop()
+                retryPlayer.setMediaItem(MediaItem.fromUri(url))
+                retryPlayer.prepare()
+                retryPlayer.play()
+                updateFavoriteStatus(song)
             }
             return
         }
-        android.util.Log.d("MusicPlayer", "ExoPlayer ready, starting playback immediately")
+        android.util.Log.d("MusicPlayer", "ExoPlayer ready, starting playback immediately, currentState=${player.playbackState}")
         _currentSong.value = song
         _currentPosition.value = 0L
         _duration.value = 0L
-        startPlaybackInternal(player, url, song)
-    }
-
-    private fun startPlaybackInternal(player: ExoPlayer, url: String, song: Song) {
         player.stop()
-        // stop 后等待 ExoPlayer 完成资源释放，避免切换音源时 prepare 被忽略
-        scope.launch {
-            delay(100)
-            player.setMediaItem(MediaItem.fromUri(url))
-            player.prepare()
-            player.play()
-            updateFavoriteStatus(song)
-
-            // 3 秒超时检测：如果播放未启动则触发错误回调
-            launch {
-                delay(3000)
-                if (!player.isPlaying && _currentSong.value?.id == song.id) {
-                    android.util.Log.e("MusicPlayer", "Playback start timeout for: ${song.name}")
-                    onPlaybackErrorListeners.forEach { it("播放超时: ${song.name}，请重试") }
-                }
-            }
-        }
+        player.setMediaItem(MediaItem.fromUri(url))
+        player.prepare()
+        player.play()
+        updateFavoriteStatus(song)
     }
 }
