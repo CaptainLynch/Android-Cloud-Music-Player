@@ -86,3 +86,21 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
 }
+
+tasks.matching { it.name.startsWith("pre") && it.name.endsWith("Build") }.configureEach {
+    doLast {
+        file("build/generated/ksp/debug/classes").mkdirs()
+        file("build/generated/ksp/release/classes").mkdirs()
+        file("build/generated/ksp/debugUnitTest/classes").mkdirs()
+        file("build/generated/ksp/releaseUnitTest/classes").mkdirs()
+    }
+}
+
+tasks.matching { it.name.contains("ksp", ignoreCase = true) }.configureEach {
+    doLast {
+        file("build/generated/ksp/debug/classes").mkdirs()
+        file("build/generated/ksp/release/classes").mkdirs()
+        file("build/generated/ksp/debugUnitTest/classes").mkdirs()
+        file("build/generated/ksp/releaseUnitTest/classes").mkdirs()
+    }
+}

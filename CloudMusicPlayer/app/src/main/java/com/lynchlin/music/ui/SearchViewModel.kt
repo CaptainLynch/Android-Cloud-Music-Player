@@ -55,15 +55,21 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
         android.util.Log.d("MusicApp", msg)
     }
 
+    // 监听器引用（用于在 onCleared 中移除）
+    private val songReadyListener: (Song) -> Unit = { song -> playSongFromQueue(song) }
+    private val playbackErrorListener: (String) -> Unit = { msg -> _error.value = msg }
+
     init {
         FavoritesRepository.init(application)
         MusicPlayerManager.init(application)
-        MusicPlayerManager.onSongReady = { song ->
-            playSongFromQueue(song)
-        }
-        MusicPlayerManager.onPlaybackError = { msg ->
-            _error.value = msg
-        }
+        MusicPlayerManager.addOnSongReadyListener(songReadyListener)
+        MusicPlayerManager.addOnPlaybackErrorListener(playbackErrorListener)
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        MusicPlayerManager.removeOnSongReadyListener(songReadyListener)
+        MusicPlayerManager.removeOnPlaybackErrorListener(playbackErrorListener)
     }
 
     fun setPlatform(platform: Platform) {
@@ -85,6 +91,10 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                 )
                 _searchPlatform.value = platform
                 debug("API返回 ${metingSongs.size} 首歌曲")
+                // 添加详细日志：输出每首歌曲的 URL
+                metingSongs.forEachIndexed { i, ms ->
+                    android.util.Log.d("MusicApp", "Song[$i]: title=${ms.title}, url=${ms.url.take(100)}")
+                }
                 val songs = metingSongs.mapIndexed { index, ms ->
                     Song(
                         id = (ms.url.hashCode().toLong() shl 32) or (index.toLong() and 0xFFFFFFFF),
@@ -96,7 +106,18 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                         lyricId = ms.lrc,
                         source = platform.value
                     )
-                }.filter { !it.urlId.isNullOrBlank() && "undefined" !in it.urlId!! }
+                }.filter { song ->
+                    val url = song.urlId
+                    val isValid = !url.isNullOrBlank() &&
+                    "undefined" !in url &&
+                    url.startsWith("http") &&
+                    url.length > 20
+                    if (!isValid) {
+                        android.util.Log.w("MusicApp", "过滤无效URL: song=${song.name}, url=$url")
+                    }
+                    isValid
+                }
+                android.util.Log.d("MusicApp", "过滤后剩余 ${songs.size} 首歌曲")
                 _searchResults.value = songs
             } catch (e: Exception) {
                 _error.value = e.message ?: "搜索失败"
@@ -108,11 +129,14 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun playSong(song: Song) {
+        android.util.Log.d("MusicApp", "playSong: song=${song.name}, id=${song.id}")
         val results = _searchResults.value
         if (results.isNotEmpty()) {
             val startIdx = results.indexOfFirst { it.id == song.id }
+            android.util.Log.d("MusicApp", "playSong: 搜索结果 ${results.size} 首, startIndex=$startIdx")
             MusicPlayerManager.playQueue(results, if (startIdx >= 0) startIdx else 0)
         } else {
+            android.util.Log.d("MusicApp", "playSong: 搜索结果为空，只播放单曲")
             MusicPlayerManager.playQueue(listOf(song), 0)
         }
     }
@@ -148,8 +172,14 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
         return FavoritesRepository.isFavorite(songId)
     }
 
+    // 重试播放当前歌曲
+    fun retryPlayback() {
+        MusicPlayerManager.retryCurrentSong()
+    }
+
     private fun playSongFromQueue(song: Song) {
         val audioUrl = song.urlId
+        android.util.Log.d("MusicApp", "playSongFromQueue: song=${song.name}, urlId=$audioUrl")
         if (audioUrl == null) {
             debug("ERROR: urlId is null for '${song.name}'")
             _error.value = "No playable URL for: ${song.name}"
@@ -158,8 +188,10 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
         debug("播放: ${song.name}, URL=${audioUrl.take(60)}...")
         viewModelScope.launch {
             try {
+                android.util.Log.d("MusicApp", "调用 playExternalUrl: url=${audioUrl.take(80)}")
                 MusicPlayerManager.playExternalUrl(audioUrl, song)
             } catch (e: Exception) {
+                android.util.Log.e("MusicApp", "playExternalUrl 异常: ${e.message}", e)
                 _error.value = e.message ?: "Failed to load song URL"
                 e.printStackTrace()
             }

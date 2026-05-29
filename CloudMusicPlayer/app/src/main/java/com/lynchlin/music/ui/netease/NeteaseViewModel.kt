@@ -73,21 +73,29 @@ class NeteaseViewModel(application: Application) : AndroidViewModel(application)
     private var currentTrackList: List<NeteaseTrack> = emptyList()
     private var currentAlbumArtUrl: String? = null
 
+    // 监听器引用（用于在 onCleared 中移除）
+    private val trackEndedListener: () -> Boolean = {
+        val idx = _playingTrackIndex.value
+        val list = currentTrackList
+        if (idx >= 0 && idx < list.size - 1) {
+            playTrack(list[idx + 1], list, idx + 1)
+            true
+        } else false
+    }
+    private val playbackErrorListener: (String) -> Unit = { msg -> _error.value = msg }
+
     init {
         NeteaseSettings.init(application)
         if (isLoggedIn) loadUserPlaylists()
 
-        MusicPlayerManager.onTrackEnded = {
-            val idx = _playingTrackIndex.value
-            val list = currentTrackList
-            if (idx >= 0 && idx < list.size - 1) {
-                playTrack(list[idx + 1], list, idx + 1)
-                true
-            } else false
-        }
-        MusicPlayerManager.onPlaybackError = { msg ->
-            _error.value = msg
-        }
+        MusicPlayerManager.addOnTrackEndedListener(trackEndedListener)
+        MusicPlayerManager.addOnPlaybackErrorListener(playbackErrorListener)
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        MusicPlayerManager.removeOnTrackEndedListener(trackEndedListener)
+        MusicPlayerManager.removeOnPlaybackErrorListener(playbackErrorListener)
     }
 
     private fun api(): NeteaseApiService =

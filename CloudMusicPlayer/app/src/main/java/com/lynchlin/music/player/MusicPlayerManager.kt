@@ -45,9 +45,45 @@ object MusicPlayerManager {
     private val _isCurrentSongFavorite = MutableStateFlow(false)
     val isCurrentSongFavorite: StateFlow<Boolean> = _isCurrentSongFavorite.asStateFlow()
 
-    var onSongReady: ((Song) -> Unit) = {}
-    var onTrackEnded: (() -> Boolean)? = null
-    var onPlaybackError: ((String) -> Unit)? = null
+    // 回调监听器列表（支持多个 ViewModel 注册）
+    private val onSongReadyListeners = mutableListOf<(Song) -> Unit>()
+    private val onTrackEndedListeners = mutableListOf<() -> Boolean>()
+    private val onPlaybackErrorListeners = mutableListOf<(String) -> Unit>()
+
+    fun addOnSongReadyListener(listener: (Song) -> Unit) {
+        onSongReadyListeners.add(listener)
+    }
+
+    fun removeOnSongReadyListener(listener: (Song) -> Unit) {
+        onSongReadyListeners.remove(listener)
+    }
+
+    fun addOnTrackEndedListener(listener: () -> Boolean) {
+        onTrackEndedListeners.add(listener)
+    }
+
+    fun removeOnTrackEndedListener(listener: () -> Boolean) {
+        onTrackEndedListeners.remove(listener)
+    }
+
+    fun addOnPlaybackErrorListener(listener: (String) -> Unit) {
+        onPlaybackErrorListeners.add(listener)
+    }
+
+    fun removeOnPlaybackErrorListener(listener: (String) -> Unit) {
+        onPlaybackErrorListeners.remove(listener)
+    }
+
+    // 触发 onTrackEnded 监听器，返回 true 表示已处理
+    fun notifyTrackEnded(): Boolean {
+        android.util.Log.d("MusicPlayer", "触发 onTrackEnded 回调，监听器数量: ${onTrackEndedListeners.size}")
+        for (listener in onTrackEndedListeners) {
+            if (listener()) {
+                return true
+            }
+        }
+        return false
+    }
 
     internal fun bindPlayer(player: ExoPlayer, svc: MediaPlaybackService) {
         if (exoPlayer != null) return
@@ -56,16 +92,26 @@ object MusicPlayerManager {
 
         player.addListener(object : Player.Listener {
             override fun onIsPlayingChanged(isPlaying: Boolean) {
+                android.util.Log.d("MusicPlayer", "isPlaying changed: $isPlaying")
                 _isPlaying.value = isPlaying
             }
 
             override fun onPlaybackStateChanged(playbackState: Int) {
+                val stateName = when (playbackState) {
+                    Player.STATE_IDLE -> "STATE_IDLE"
+                    Player.STATE_BUFFERING -> "STATE_BUFFERING"
+                    Player.STATE_READY -> "STATE_READY"
+                    Player.STATE_ENDED -> "STATE_ENDED"
+                    else -> "UNKNOWN($playbackState)"
+                }
+                android.util.Log.d("MusicPlayer", "Playback state changed: $stateName")
                 if (playbackState == Player.STATE_READY) {
                     _duration.value = player.duration
                 }
             }
 
             override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                android.util.Log.d("MusicPlayer", "MediaItem transition: reason=$reason")
                 if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_SEEK) return
                 _duration.value = player.duration
                 _currentPosition.value = 0L
@@ -74,13 +120,23 @@ object MusicPlayerManager {
             override fun onPlayerError(error: PlaybackException) {
                 val songName = _currentSong.value?.name ?: "未知歌曲"
                 val msg = when (error.errorCode) {
-                    PlaybackException.ERROR_CODE_IO_UNAUTHORIZED,
-                    PlaybackException.ERROR_CODE_IO_FORBIDDEN -> "播放失败：该音源暂不可用，请尝试其他平台"
+                    PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS,
+                    PlaybackException.ERROR_CODE_IO_NO_PERMISSION -> "播放失败：该音源暂不可用，请尝试其他平台"
                     PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
                     PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT -> "播放失败：网络连接异常"
                     else -> "播放失败：${error.message ?: "未知错误"}"
                 }
-                onPlaybackError?.invoke(msg)
+                android.util.Log.e("MusicPlayer", "Playback error: $msg, errorCode=${error.errorCode}", error)
+
+                // 重置播放状态
+                _isPlaying.value = false
+                _currentPosition.value = 0L
+                _duration.value = 0L
+
+                android.util.Log.d("MusicPlayer", "触发 onPlaybackError 回调，监听器数量: ${onPlaybackErrorListeners.size}")
+                onPlaybackErrorListeners.forEach { listener ->
+                    listener(msg)
+                }
             }
         })
 
@@ -118,6 +174,7 @@ object MusicPlayerManager {
     }
 
     fun playQueue(songs: List<Song>, startIndex: Int = 0) {
+        android.util.Log.d("MusicPlayer", "playQueue: songs=${songs.size}, startIndex=$startIndex")
         val player = exoPlayer ?: return
         if (songs.isEmpty()) return
 
@@ -125,6 +182,7 @@ object MusicPlayerManager {
         _currentIndex.value = startIndex
 
         val song = songs[startIndex]
+        android.util.Log.d("MusicPlayer", "playQueue: 播放歌曲 ${song.name}")
         playSongFromQueue(song)
     }
 
@@ -173,6 +231,14 @@ object MusicPlayerManager {
         service = null
     }
 
+    // 重试播放当前歌曲
+    fun retryCurrentSong() {
+        val song = _currentSong.value ?: return
+        val url = song.urlId ?: return
+        android.util.Log.d("MusicPlayer", "retryCurrentSong: song=${song.name}")
+        playExternalUrl(url, song)
+    }
+
     fun getExoPlayerPosition(): Long {
         return exoPlayer?.currentPosition ?: 0L
     }
@@ -198,11 +264,15 @@ object MusicPlayerManager {
     }
 
     private fun playSongFromQueue(song: Song) {
+        android.util.Log.d("MusicPlayer", "playSongFromQueue: song=${song.name}, exoPlayer=${exoPlayer != null}")
         if (exoPlayer == null) return
         _currentSong.value = song
         _currentPosition.value = 0L
         updateFavoriteStatus(song)
-        onSongReady(song)
+        android.util.Log.d("MusicPlayer", "触发 onSongReady 回调，监听器数量: ${onSongReadyListeners.size}")
+        onSongReadyListeners.forEach { listener ->
+            listener(song)
+        }
     }
 
     fun setCurrentIndex(index: Int) {
@@ -210,6 +280,15 @@ object MusicPlayerManager {
     }
 
     fun playExternalUrl(url: String, song: Song) {
+        android.util.Log.d("MusicPlayer", "playExternalUrl: song=${song.name}, url=${url.take(80)}")
+
+        // 验证 URL 格式
+        if (url.isBlank() || !url.startsWith("http")) {
+            android.util.Log.e("MusicPlayer", "Invalid URL: $url")
+            onPlaybackErrorListeners.forEach { it("无效的播放链接") }
+            return
+        }
+
         val player = exoPlayer
         if (player == null) {
             android.util.Log.e("MusicPlayer", "ExoPlayer not ready, retrying in 500ms")
@@ -218,9 +297,13 @@ object MusicPlayerManager {
                 val retryPlayer = exoPlayer
                 if (retryPlayer == null) {
                     android.util.Log.e("MusicPlayer", "ExoPlayer still not ready after retry")
+                    onPlaybackErrorListeners.forEach { it("播放器未就绪，请稍后重试") }
                     return@launch
                 }
+                android.util.Log.d("MusicPlayer", "ExoPlayer ready after retry, starting playback")
                 _currentSong.value = song
+                _currentPosition.value = 0L
+                _duration.value = 0L
                 retryPlayer.stop()
                 retryPlayer.setMediaItem(MediaItem.fromUri(url))
                 retryPlayer.prepare()
@@ -229,7 +312,10 @@ object MusicPlayerManager {
             }
             return
         }
+        android.util.Log.d("MusicPlayer", "ExoPlayer ready, starting playback immediately")
         _currentSong.value = song
+        _currentPosition.value = 0L
+        _duration.value = 0L
         player.stop()
         player.setMediaItem(MediaItem.fromUri(url))
         player.prepare()

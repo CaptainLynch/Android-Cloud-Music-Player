@@ -106,7 +106,7 @@ class MediaPlaybackService : MediaSessionService() {
     }
 
     private fun onTrackEnded() {
-        val handled = MusicPlayerManager.onTrackEnded?.invoke() ?: false
+        val handled = MusicPlayerManager.notifyTrackEnded()
         if (!handled) MusicPlayerManager.playNext()
     }
 

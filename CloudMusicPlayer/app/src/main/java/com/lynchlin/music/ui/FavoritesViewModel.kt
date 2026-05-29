@@ -23,15 +23,21 @@ class FavoritesViewModel(application: Application) : AndroidViewModel(applicatio
 
     private val _albumArtCache = mutableMapOf<String, String>()
 
+    // 监听器引用（用于在 onCleared 中移除）
+    private val songReadyListener: (Song) -> Unit = { song -> playSongFromQueue(song) }
+    private val playbackErrorListener: (String) -> Unit = { msg -> _error.value = msg }
+
     init {
         FavoritesRepository.init(application)
         MusicPlayerManager.init(application)
-        MusicPlayerManager.onSongReady = { song ->
-            playSongFromQueue(song)
-        }
-        MusicPlayerManager.onPlaybackError = { msg ->
-            _error.value = msg
-        }
+        MusicPlayerManager.addOnSongReadyListener(songReadyListener)
+        MusicPlayerManager.addOnPlaybackErrorListener(playbackErrorListener)
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        MusicPlayerManager.removeOnSongReadyListener(songReadyListener)
+        MusicPlayerManager.removeOnPlaybackErrorListener(playbackErrorListener)
     }
 
     fun toggleFavorite(song: Song) {
