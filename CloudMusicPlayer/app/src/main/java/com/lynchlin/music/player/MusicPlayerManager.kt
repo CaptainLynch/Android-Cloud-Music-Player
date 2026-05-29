@@ -304,11 +304,7 @@ object MusicPlayerManager {
                 _currentSong.value = song
                 _currentPosition.value = 0L
                 _duration.value = 0L
-                retryPlayer.stop()
-                retryPlayer.setMediaItem(MediaItem.fromUri(url))
-                retryPlayer.prepare()
-                retryPlayer.play()
-                updateFavoriteStatus(song)
+                startPlaybackInternal(retryPlayer, url, song)
             }
             return
         }
@@ -316,10 +312,27 @@ object MusicPlayerManager {
         _currentSong.value = song
         _currentPosition.value = 0L
         _duration.value = 0L
+        startPlaybackInternal(player, url, song)
+    }
+
+    private fun startPlaybackInternal(player: ExoPlayer, url: String, song: Song) {
         player.stop()
-        player.setMediaItem(MediaItem.fromUri(url))
-        player.prepare()
-        player.play()
-        updateFavoriteStatus(song)
+        // stop 后等待 ExoPlayer 完成资源释放，避免切换音源时 prepare 被忽略
+        scope.launch {
+            delay(100)
+            player.setMediaItem(MediaItem.fromUri(url))
+            player.prepare()
+            player.play()
+            updateFavoriteStatus(song)
+
+            // 3 秒超时检测：如果播放未启动则触发错误回调
+            launch {
+                delay(3000)
+                if (!player.isPlaying && _currentSong.value?.id == song.id) {
+                    android.util.Log.e("MusicPlayer", "Playback start timeout for: ${song.name}")
+                    onPlaybackErrorListeners.forEach { it("播放超时: ${song.name}，请重试") }
+                }
+            }
+        }
     }
 }

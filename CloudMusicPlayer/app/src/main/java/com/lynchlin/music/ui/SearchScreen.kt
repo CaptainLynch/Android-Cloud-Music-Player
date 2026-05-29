@@ -2,6 +2,7 @@ package com.lynchlin.music.ui
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
@@ -102,12 +103,21 @@ fun SearchScreen(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            if (debugLog.isNotBlank()) {
-                Text(
-                    text = debugLog,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary
-                )
+            if (debugLog.isNotEmpty()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 120.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    debugLog.forEach { line ->
+                        Text(
+                            text = line,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
                 Spacer(modifier = Modifier.height(4.dp))
             }
 

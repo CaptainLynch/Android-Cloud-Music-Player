@@ -47,11 +47,11 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
     val currentSong = MusicPlayerManager.currentSong
     val isCurrentSongFavorite = MusicPlayerManager.isCurrentSongFavorite
 
-    private val _debugLog = MutableStateFlow("")
-    val debugLog: StateFlow<String> = _debugLog.asStateFlow()
+    private val _debugLog = MutableStateFlow<List<String>>(emptyList())
+    val debugLog: StateFlow<List<String>> = _debugLog.asStateFlow()
 
     private fun debug(msg: String) {
-        _debugLog.value = msg
+        _debugLog.value = (_debugLog.value + msg).takeLast(10)
         android.util.Log.d("MusicApp", msg)
     }
 
@@ -93,7 +93,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                 debug("API返回 ${metingSongs.size} 首歌曲")
                 // 添加详细日志：输出每首歌曲的 URL
                 metingSongs.forEachIndexed { i, ms ->
-                    android.util.Log.d("MusicApp", "Song[$i]: title=${ms.title}, url=${ms.url.take(100)}")
+                    debug("[$i] ${ms.title} - ${ms.author} | ${ms.url.take(120)}")
                 }
                 val songs = metingSongs.mapIndexed { index, ms ->
                     Song(
@@ -185,7 +185,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
             _error.value = "No playable URL for: ${song.name}"
             return
         }
-        debug("播放: ${song.name}, URL=${audioUrl.take(60)}...")
+        debug("播放: ${song.name}, URL=${audioUrl.take(120)}")
         viewModelScope.launch {
             try {
                 android.util.Log.d("MusicApp", "调用 playExternalUrl: url=${audioUrl.take(80)}")
