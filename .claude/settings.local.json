@@ -7,7 +7,22 @@
       "Bash(E:/AndroidSDK/platform-tools/adb logcat *)",
       "Bash(./gradlew assembleDebug)",
       "Bash(E:/AndroidSDK/platform-tools/adb install *)",
-      "Bash(\"E:/AndroidSDK/platform-tools/adb\" shell *)"
+      "Bash(\"E:/AndroidSDK/platform-tools/adb\" shell *)",
+      "Bash(curl -s \"https://api.i-meto.com/meting/api?server=netease&type=search&id=周杰伦\")",
+      "PowerShell(Invoke-WebRequest -Uri \"https://api.i-meto.com/meting/api?server=netease&type=search&id=周杰伦\" -UseBasicParsing | Select-Object -ExpandProperty Content | ConvertFrom-Json | Select-Object -First 3 | Format-List)",
+      "Bash(curl -s -k \"https://api.i-meto.com/meting/api?server=netease&type=search&id=周杰伦\")",
+      "Bash(ping *)",
+      "Bash(curl -v \"https://api.i-meto.com/meting/api?server=netease&type=search&id=test\")",
+      "Bash(curl -s \"https://music-api.gdstudio.xyz/api.php?source=netease&type=search&id=周杰伦\")",
+      "Bash(curl -s \"http://music-api.gdstudio.xyz/api.php?source=netease&type=search&id=周杰伦\")",
+      "Bash(curl -s -L --max-time 10 \"https://api.i-meto.com/meting/api?server=netease&type=search&id=晴天\" -H \"User-Agent: Mozilla/5.0\" -H \"Cookie: __cf_bm=test\")",
+      "Bash(./gradlew --version)",
+      "Bash(./gradlew projects *)",
+      "Bash(./gradlew clean *)",
+      "Bash(./gradlew --stop)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git push *)"
     ]
   }
 }
