@@ -1,0 +1,18 @@
+# IDE
+.idea/
+*.iml
+
+# Local configuration
+.claude/settings.local.json
+
+# Build
+build/
+.gradle/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test files
+CloudMusicPlayer/scratch_test.txt
+CloudMusicPlayer/test.txt
